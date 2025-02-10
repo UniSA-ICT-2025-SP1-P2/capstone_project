@@ -1,0 +1,124 @@
+#src kaggle malware-memory-analysis
+
+
+import numpy as np
+import pandas as pd
+import os
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+
+# Load dataset
+print("Loading dataset...")
+df = pd.read_csv("./Obfuscated-MalMem2022.csv")
+
+# Display dataset info
+print("\nDataset Info:")
+print(df.info())
+
+# Check for missing values
+print("\nMissing Values:")
+print(df.isnull().sum())
+
+# Count unique categories
+print("\nCategory Distribution:")
+print(df["Category"].value_counts())
+
+# Function to split malware category
+def find_category(column):
+    return column.split("-")[0] if "-" in column else column
+
+# Function to split malware variant name
+def find_category_name(column):
+    return column.split("-")[1] if "-" in column else column
+
+# Create new category columns
+df["category"] = df["Category"].apply(find_category)
+df["category_name"] = df["Category"].apply(find_category_name)
+
+# Plot malware category distribution
+plt.figure(figsize=(8, 4))
+sns.countplot(x=df["category"])
+plt.title("Malware Category Distribution")
+plt.show()
+
+# Plot malware variant distribution
+plt.figure(figsize=(10, 5))
+sns.countplot(x=df["category_name"])
+plt.xticks(rotation=90)
+plt.title("Malware Variant Distribution")
+plt.show()
+
+# Encode categorical features
+def label_encoder(column):
+    le = LabelEncoder().fit(column)
+    return le.transform(column)
+
+df["category"] = label_encoder(df["category"])
+df["category_name"] = label_encoder(df["category_name"])
+df["class"] = label_encoder(df["Class"])
+
+# Drop unnecessary columns
+df.drop(["Category", "Class"], axis=1, inplace=True)
+
+# Separate features and target
+X = df.drop("class", axis=1)
+y = df["class"]
+
+# Scale features
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Train-test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.3, random_state=42)
+
+# Define classifiers
+clfs = [
+    ("Logistic Regression", LogisticRegression()),
+    ("K-Nearest Neighbors", KNeighborsClassifier()),
+    ("Support Vector", SVC()),
+    ("Decision Tree", DecisionTreeClassifier()),
+    ("Random Forest", RandomForestClassifier()),
+    ("Extreme Gradient Boosting", XGBClassifier())
+]
+
+# Create DataFrame to store results
+scores_df = pd.DataFrame(columns=["Model Name", "Accuracy Score", "F1 Score", "Precision Score", "Recall Score"])
+
+# Train and evaluate models
+for clf_name, clf in clfs:
+    clf.fit(X_train, y_train)
+    y_pred = clf.predict(X_test)
+
+    new_row = pd.DataFrame([{
+        "Model Name": clf_name,
+        "Accuracy Score": accuracy_score(y_test, y_pred),
+        "F1 Score": f1_score(y_test, y_pred, average='weighted'),
+        "Precision Score": precision_score(y_test, y_pred, average='weighted'),
+        "Recall Score": recall_score(y_test, y_pred, average='weighted')
+    }])
+
+    scores_df = pd.concat([scores_df, new_row], ignore_index=True)
+
+# Print results
+print("\nModel Performance:")
+print(scores_df.to_string(index=False))
+
+# Plot performance metrics
+plt.figure(figsize=(10, 5))
+plt.plot(scores_df["Model Name"], scores_df["Accuracy Score"], color="red", marker="o", label="Accuracy")
+plt.plot(scores_df["Model Name"], scores_df["F1 Score"], color="blue", marker="s", label="F1 Score")
+plt.plot(scores_df["Model Name"], scores_df["Precision Score"], color="green", marker="^", label="Precision")
+plt.plot(scores_df["Model Name"], scores_df["Recall Score"], color="orange", marker="x", label="Recall")
+plt.xticks(rotation=90)
+plt.legend()
+plt.title("Model Performance Comparison")
+plt.show()
