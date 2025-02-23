@@ -16,6 +16,7 @@ from art.estimators.classification import SklearnClassifier
 #therefore for the adversarial samples, its been replaced with the mean svcscan.nservices of the bening samples 
 # other efforts could include removing the feature, or random replacing with known value from bening samples.
 #all other features are perturbed by the FGSM process, not svc.scan.
+# same code- but modifies only five features - seen here: https://github.com/rasjm001/capstoneproject
 
 
 #generates a csv of adversarial samples, along with the original samples for comparison of the perturbed effect
