@@ -11,15 +11,9 @@ from xgboost import XGBClassifier
 from art.attacks.evasion import FastGradientMethod
 from art.estimators.classification import SklearnClassifier
 
-#this script generates samples using FGSM ( via art module)
-#svcscan.nservices was determine to have significant high feature importance in previous analysis
-#therefore for the adversarial samples, its been replaced with the mean svcscan.nservices of the bening samples 
-# other efforts could include removing the feature, or random replacing with known value from bening samples.
-#all other features are perturbed by the FGSM process, not svc.scan.
-
-
-#generates a csv of adversarial samples, along with the original samples for comparison of the perturbed effect
-#generates a csv of the adversarial samples
+#same as previous file, except, only 5 feature are modified in the data set- not all
+#mean value of bening svcscan.nservices is used for malware samples
+#
 
 
 # Load the dataset from a CSV file
@@ -82,37 +76,39 @@ if "Category" in df.columns:
     category_malware = category_test.iloc[selected_indices]
 
 # Modify svcscan.nservices for adversarial malware samples
-svcscan_idx = X.columns.get_loc("svcscan.nservices")
 X_test_malware_raw = X_test_malware.copy()
 X_test_malware_raw["svcscan.nservices"] = benign_mean_svcscan
 X_test_malware_scaled = scaler.transform(X_test_malware_raw)
+
+# Define features to perturb
+features_to_perturb = ['pslist.nproc', 'malfind.ninjections', 'handles.nhandles', 'dlllist.ndlls', 'svcscan.kernel_drivers']
 
 # Generate adversarial samples using ART
 classifier = SklearnClassifier(model=trained_models["Logistic Regression"])
 fgsm = FastGradientMethod(estimator=classifier, eps=0.15)
 X_test_adv_scaled = fgsm.generate(X_test_malware_scaled)
 
-# Ensure svcscan.nservices is not perturbed
+# Compute perturbation and restrict it to specified features
 perturbation = X_test_adv_scaled - X_test_malware_scaled
-perturbation[:, svcscan_idx] = 0
+indices_not_to_perturb = [X.columns.get_loc(feat) for feat in X.columns if feat not in features_to_perturb]
+perturbation[:, indices_not_to_perturb] = 0
 X_test_adv_scaled = X_test_malware_scaled + perturbation
 
 # Inverse transform to raw space
 X_test_adv_raw = scaler.inverse_transform(X_test_adv_scaled)
 X_test_malware_raw_original = scaler.inverse_transform(X_test_malware_scaled)
 
-# **Create DataFrame for adversarial samples in the original dataset format**
+# Create DataFrame for adversarial samples in the original dataset format
 adv_samples_df = pd.DataFrame(X_test_adv_raw, columns=X.columns)
 adv_samples_df["Class"] = "Malware"  # Label as Malware since these are adversarial malware samples
-# If "Category" exists, add it back
 if "Category" in df.columns:
     adv_samples_df.insert(0, "Category", category_malware.values)
 
 # Save adversarial samples to CSV
-adv_samples_df.to_csv('adversarial_samples.csv', index=False)
-print("\nAdversarial samples saved to 'adversarial_samples.csv'")
+adv_samples_df.to_csv('adversarial_samples_specific_features.csv', index=False)
+print("\nAdversarial samples saved to 'adversarial_samples_specific_features.csv'")
 
-# **Create DataFrame for comparison (original and adversarial)**
+# Create DataFrame for comparison (original and adversarial)
 comparison_df = pd.DataFrame(X_test_malware_raw_original, columns=X.columns)
 comparison_df['Label'] = y_test_malware.values
 comparison_df['Type'] = 'Original'
@@ -122,16 +118,21 @@ adv_comparison_df['Type'] = 'Adversarial'
 comparison_samples_df = pd.concat([comparison_df, adv_comparison_df], ignore_index=True)
 
 # Save comparison CSV
-comparison_samples_df.to_csv('adversarial_sample_comparison.csv', index=False)
-print("\nComparison of original and adversarial samples saved to 'adversarial_sample_comparison.csv'")
+comparison_samples_df.to_csv('adversarial_sample_comparison_specific_features.csv', index=False)
+print("\nComparison of original and adversarial samples saved to 'adversarial_sample_comparison_specific_features.csv'")
 
+
+
+
+#using the classification report to print the metric- however important to note that for testing the 
+#adversarial samples, only the recall is required ( could change out using a dictionary- or modify classification report function)
 # Evaluate the adversarial samples on all trained models
 for name, clf in trained_models.items():
     y_pred_adv = clf.predict(X_test_adv_scaled)
     print(f"\nClassifier: {name} (Adversarial)")
     unique_classes = np.unique(y_test_malware)
     if len(unique_classes) == 1:
-        print(f"Warning: Only one class ({unique_classes[0]}) present in y_test_malware.")
+       # print(f"Warning: Only one class ({unique_classes[0]}) present in y_test_malware.")
         print(classification_report(y_test_malware, y_pred_adv, labels=unique_classes, target_names=["Malware"] if 1 in unique_classes else ["Benign"]))
     else:
         print(classification_report(y_test_malware, y_pred_adv, target_names=["Benign", "Malware"]))
