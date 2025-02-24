@@ -13,8 +13,7 @@ from art.estimators.classification import SklearnClassifier
 
 #same as previous file, except, only 5 feature are modified in the data set- not all
 #mean value of bening svcscan.nservices is used for malware samples
-#only the following are modified in FGSM ['pslist.nproc', 'malfind.ninjections', 'handles.nhandles', 'dlllist.ndlls', 'svcscan.kernel_drivers']
-#comparison of the OG sample and new samples can be seen in the comparision doc
+#
 
 
 # Load the dataset from a CSV file
@@ -122,6 +121,11 @@ comparison_samples_df = pd.concat([comparison_df, adv_comparison_df], ignore_ind
 comparison_samples_df.to_csv('adversarial_sample_comparison_specific_features.csv', index=False)
 print("\nComparison of original and adversarial samples saved to 'adversarial_sample_comparison_specific_features.csv'")
 
+
+
+
+#using the classification report to print the metric- however important to note that for testing the 
+#adversarial samples, only the recall is required ( could change out using a dictionary- or modify classification report function)
 # Evaluate the adversarial samples on all trained models
 for name, clf in trained_models.items():
     y_pred_adv = clf.predict(X_test_adv_scaled)
