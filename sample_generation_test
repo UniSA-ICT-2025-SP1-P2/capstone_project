@@ -16,6 +16,7 @@ from art.estimators.classification import SklearnClassifier
 #only the following are modified in FGSM ['pslist.nproc', 'malfind.ninjections', 'handles.nhandles', 'dlllist.ndlls', 'svcscan.kernel_drivers']
 #comparison of the OG sample and new samples can be seen in the comparision doc
 
+
 # Load the dataset from a CSV file
 df = pd.read_csv('../data.csv')  # Adjust the path as needed
 
@@ -127,7 +128,7 @@ for name, clf in trained_models.items():
     print(f"\nClassifier: {name} (Adversarial)")
     unique_classes = np.unique(y_test_malware)
     if len(unique_classes) == 1:
-        print(f"Warning: Only one class ({unique_classes[0]}) present in y_test_malware.")
+       # print(f"Warning: Only one class ({unique_classes[0]}) present in y_test_malware.")
         print(classification_report(y_test_malware, y_pred_adv, labels=unique_classes, target_names=["Malware"] if 1 in unique_classes else ["Benign"]))
     else:
         print(classification_report(y_test_malware, y_pred_adv, target_names=["Benign", "Malware"]))
