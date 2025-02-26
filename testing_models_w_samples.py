@@ -178,7 +178,7 @@ fgsm = FastGradientMethod(estimator=classifier, eps=0.20)
 # Generate adversarial samples
 X_test_adv_scaled = fgsm.generate(X_test_malware_scaled)
 
-# Restrict perturbation to specified features from Code 2
+# Restrict perturbation to specified features from max's code
 features_to_perturb = ['pslist.nproc', 'malfind.ninjections', 'handles.nhandles', 
                        'dlllist.ndlls', 'svcscan.kernel_drivers']
 indices_to_perturb = [X_test.columns.get_loc(feat) for feat in features_to_perturb]
