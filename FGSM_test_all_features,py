@@ -13,6 +13,8 @@ from sklearn.metrics import classification_report, accuracy_score, confusion_mat
 from art.attacks.evasion import FastGradientMethod
 from art.estimators.classification import SklearnClassifier
 
+
+#preprocess and train as per AK code
 # Load the dataset
 df = pd.read_csv('./data.csv')  # Adjust path as needed
 
