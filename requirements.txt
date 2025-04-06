@@ -2,5 +2,7 @@ numpy
 pandas
 matplotlib
 scikit-learn
-xgboost
+joblib
 adversarial-robustness-toolbox
+seaborn
+shap
