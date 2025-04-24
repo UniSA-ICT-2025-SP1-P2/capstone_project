@@ -1,3 +1,5 @@
+# Ignore all model files globally
 *.pkl
 *.pt
-/prototype/defence_prototype/models/*
+
+prototype/defence_prototype/models/
