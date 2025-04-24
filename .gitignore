@@ -1,5 +1,6 @@
-# Ignore all model files globally
+# Ignore all model files
 *.pkl
 *.pt
 
+# Ignore the models directory explicitly
 prototype/defence_prototype/models/
