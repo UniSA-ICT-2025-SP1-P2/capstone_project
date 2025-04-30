@@ -10,11 +10,19 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import joblib
 
+
+
 #  %%
 # === Paths ===
-DATA_PATH = '../../data/train_label.csv'
-MODEL_DIR = '../models'
+# Get the directory *this file* is in (src/)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))                    # /src/defences/
+PROJECT_DIR = os.path.abspath(os.path.join(BASE_DIR, '..', '..', '..'))  # /prototype/
+
+DATA_PATH = os.path.join(PROJECT_DIR, 'data', 'train_label.csv')
+MODEL_DIR = os.path.join(PROJECT_DIR, 'models')
 os.makedirs(MODEL_DIR, exist_ok=True)
+
+print("Final resolved data path:", DATA_PATH)
 
 # === Load and Preprocess Data ===
 df = pd.read_csv(DATA_PATH)

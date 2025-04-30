@@ -57,5 +57,3 @@ def predict(X, model_type='ensemble'):
 
     else:
         raise ValueError("model_type must be 'rf', 'nn', or 'ensemble'")
-
-# %%

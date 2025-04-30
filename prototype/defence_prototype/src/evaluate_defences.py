@@ -1,22 +1,31 @@
 # %%
+import os
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
+print("Current working directory:", os.getcwd())
+
+# %%
 import pandas as pd
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score
+import sys
 import os
-from predict import predict 
+os.chdir(os.path.dirname(__file__))
+
+from predict import predict
 import joblib
 
 # %%
 # === Paths ===
-DATA_DIR = '../../data'
+DATA_DIR = '../../../data'
 RESULTS_DIR = '../results'
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
+# %%
 # === Files to Evaluate ===
 datasets = {
     'clean': 'test_label.csv',
-    'fgsm': 'adversarial_fgsm.csv',
-    'pgd': 'adversarial_pgd.csv',
+    # 'fgsm': 'adversarial_fgsm.csv',
+    # 'pgd': 'adversarial_pgd.csv',
     'clean_smoothed': 'test_label_smoothed.csv',
 }
 
@@ -24,7 +33,7 @@ datasets = {
 model_types = ['rf', 'nn', 'ensemble']  # you can later add 'nn_adv' if retrained with adversarial examples
 
 # === Load Label Encoder ===
-label_encoder = joblib.load('../models/label_encoder.pkl')
+label_encoder = joblib.load('../../models/label_encoder.pkl')
 
 # %%
 # === Evaluation Function ===
@@ -69,4 +78,4 @@ results_path = os.path.join(RESULTS_DIR, 'defence_results.csv')
 results_df.to_csv(results_path, index=False)
 
 print("Defence evaluations completed and saved.")
-
+# %%
