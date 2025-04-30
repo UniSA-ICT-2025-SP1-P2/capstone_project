@@ -25,6 +25,6 @@ for script in SCRIPTS:
     start_time = time.time()
     subprocess.run(["python", script], check=True, cwd=os.path.dirname(script))
     elapsed = time.time() - start_time
-    print(f"âCompleted {os.path.basename(script)} in {elapsed:.2f} seconds.")
+    print(f"Completed {os.path.basename(script)} in {elapsed:.2f} seconds.")
 
-print("\nðŸŽ¯ All experiments completed successfully.")
+print("\nAll experiments completed successfully.")
