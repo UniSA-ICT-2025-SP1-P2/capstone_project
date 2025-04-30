@@ -68,5 +68,5 @@ results_df = pd.DataFrame(all_results)
 results_path = os.path.join(RESULTS_DIR, 'defence_results.csv')
 results_df.to_csv(results_path, index=False)
 
-print("✅ Defence evaluations completed and saved.")
+print("Defence evaluations completed and saved.")
 
