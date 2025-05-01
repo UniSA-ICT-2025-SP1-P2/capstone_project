@@ -26,6 +26,16 @@ label_encoder = joblib.load(os.path.join(DEFENCE_PROTOTYPE_DIR, 'models', 'label
 
 def evaluate(X, y_true_encoded, model_type, defence_name, data_type):
     y_pred = predict(X, model_type=model_type)
+
+    # Save per-sample predictions
+    pred_df = pd.DataFrame({
+        'true_label': y_true_encoded,
+        'predicted': y_pred
+    })
+    filename = f"{model_type}_{data_type}_{defence_name}_predictions.csv"
+    pred_df.to_csv(os.path.join(RESULTS_DIR, filename), index=False)
+
+    # Compute evaluation metrics
     acc = accuracy_score(y_true_encoded, y_pred)
     f1 = f1_score(y_true_encoded, y_pred, average='weighted')
     return {
