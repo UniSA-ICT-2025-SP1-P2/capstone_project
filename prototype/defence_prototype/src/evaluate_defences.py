@@ -35,6 +35,14 @@ def evaluate(X, y_true_encoded, model_type, defence_name, data_type):
     filename = f"{model_type}_{data_type}_{defence_name}_predictions.csv"
     pred_df.to_csv(os.path.join(RESULTS_DIR, filename), index=False)
 
+      # Decode predictions
+    decoded_df = pred_df.copy()
+    decoded_df['true_label_decoded'] = label_encoder.inverse_transform(pred_df['true_label'])
+    decoded_df['predicted_decoded'] = label_encoder.inverse_transform(pred_df['predicted'])
+
+    decoded_filename = filename.replace(".csv", "_decoded.csv")
+    decoded_df.to_csv(os.path.join(RESULTS_DIR, decoded_filename), index=False)
+
     # Compute evaluation metrics
     acc = accuracy_score(y_true_encoded, y_pred)
     f1 = f1_score(y_true_encoded, y_pred, average='weighted')
