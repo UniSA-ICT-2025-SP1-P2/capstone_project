@@ -2,523 +2,199 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Adversarial Malware Analysis</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
-    <style>
-        .section-card {
-            margin-bottom: 20px;
-            transition: all 0.3s ease;
-        }
-        .results-container {
-            display: none;
-        }
-        .spinner-border {
-            width: 3rem;
-            height: 3rem;
-        }
-        .chart-container {
-            height: 300px;
-            margin-bottom: 20px;
-        }
-        .defense-metrics {
-            padding: 15px;
-            border-radius: 8px;
-            background-color: #f8f9fa;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Adversarial Malware Analysis</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
+  <style>
+    .section-card {
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+    }
+    .results-container {
+      display: none;
+    }
+    .spinner-border {
+      width: 3rem;
+      height: 3rem;
+    }
+    .chart-container {
+      height: 300px;
+      margin-bottom: 20px;
+    }
+  </style>
 </head>
 <body>
-    <div class="container py-4">
-        <h1 class="mb-4 text-center">Adversarial Malware Analysis System</h1>
-        
-        <!-- File Upload Section -->
-        <div class="card section-card">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Upload Dataset</h5>
-            </div>
-            <div class="card-body">
-                <form id="upload-form">
-                    <div class="mb-3">
-                        <label for="file-upload" class="form-label">Select CSV file with malware samples:</label>
-                        <input class="form-control" type="file" id="file-upload" accept=".csv">
-                        <div class="form-text">Please upload a CSV file containing the malware samples for analysis.</div>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Analyse Dataset</button>
-                </form>
-            </div>
-        </div>
-        
-        <!-- Processing Indicator -->
-        <div id="processing" class="text-center my-5" style="display: none;">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <h4 class="mt-3">Processing your data...</h4>
-            <p class="text-muted">This may take a few moments depending on the dataset size.</p>
-        </div>
-        
-        <!-- Results Container -->
-        <div id="results-container" class="results-container mt-4">
-            <h2 class="mb-4 text-center">Analysis Results</h2>
-            
-            <!-- Training Results -->
-            <div class="card section-card">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0">Model Training Results</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Performance Metrics</h6>
-                            <ul class="list-group mb-3">
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Accuracy
-                                    <span id="accuracy-value" class="badge bg-primary rounded-pill">-</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    F1 Score
-                                    <span id="f1-score-value" class="badge bg-primary rounded-pill">-</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Training Time
-                                    <span id="training-time-value" class="badge bg-secondary rounded-pill">-</span>
-                                </li>
-                            </ul>
-                            <div id="model-details"></div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="chart-container">
-                                <canvas id="confusion-matrix-chart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Testing Results -->
-            <div class="card section-card">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0">Model Testing Results</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="chart-container">
-                                <canvas id="detection-chart"></canvas>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Detection Statistics</h6>
-                            <ul class="list-group">
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Detection Rate
-                                    <span id="detection-rate-value" class="badge bg-success rounded-pill">-</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    False Positive Rate
-                                    <span id="false-positive-value" class="badge bg-danger rounded-pill">-</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Samples Analysed
-                                    <span id="sample-count-value" class="badge bg-secondary rounded-pill">-</span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Adversarial Analysis -->
-            <div class="card section-card">
-                <div class="card-header bg-warning">
-                    <h5 class="mb-0">Adversarial Malware Generation</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="chart-container">
-                                <canvas id="evasion-chart"></canvas>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Adversarial Statistics</h6>
-                            <ul class="list-group mb-3">
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Evasion Rate
-                                    <span id="evasion-rate-value" class="badge bg-warning rounded-pill">-</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Modified Samples
-                                    <span id="modified-samples-value" class="badge bg-secondary rounded-pill">-</span>
-                                </li>
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Success Rate
-                                    <span id="success-rate-value" class="badge bg-success rounded-pill">-</span>
-                                </li>
-                            </ul>
-                            <div id="attack-types"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Defense Strategies -->
-            <div class="card section-card">
-                <div class="card-header bg-dark text-white">
-                    <h5 class="mb-0">Defensive Strategy Analysis</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="chart-container">
-                                <canvas id="defense-improvement-chart"></canvas>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="defense-metrics">
-                                <h6>Defensive Improvements</h6>
-                                <ul class="list-group mb-3">
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        Improved Detection Rate
-                                        <span id="improved-detection-value" class="badge bg-success rounded-pill">-</span>
-                                    </li>
-                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                        Robustness Score
-                                        <span id="robustness-value" class="badge bg-primary rounded-pill">-</span>
-                                    </li>
-                                </ul>
-                                <div id="defense-techniques"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Export Options -->
-            <div class="card section-card">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0">Export Results</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <button id="export-json" class="btn btn-outline-primary mb-2 w-100">Export Results as JSON</button>
-                        </div>
-                        <div class="col-md-6">
-                            <button id="export-charts" class="btn btn-outline-success mb-2 w-100">Export Charts as PNG</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+  <div class="container py-4">
+    <h1 class="mb-4 text-center">Adversarial Malware Analysis System</h1>
+
+    <!-- Upload Section -->
+    <div class="card section-card">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Upload Dataset</h5>
+      </div>
+      <div class="card-body">
+        <form id="upload-form">
+          <div class="mb-3">
+            <label for="file-upload" class="form-label">Select CSV file with malware samples:</label>
+            <input class="form-control" type="file" id="file-upload" accept=".csv" />
+            <div class="form-text">Please upload a CSV file containing the malware samples for analysis.</div>
+          </div>
+          <button type="submit" class="btn btn-primary">Analyse Dataset</button>
+        </form>
+      </div>
     </div>
-    
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Form submission handling
-            const form = document.getElementById('upload-form');
-            const fileInput = document.getElementById('file-upload');
-            const processingIndicator = document.getElementById('processing');
-            const resultsContainer = document.getElementById('results-container');
-            
-            // Charts and data variables
-            let confusionMatrixChart, detectionChart, evasionChart, defenseChart;
-            let analysisData = null;
-            
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const file = fileInput.files[0];
-                if (!file) {
-                    alert('Please select a CSV file to upload');
-                    return;
-                }
-                
-                if (!file.name.endsWith('.csv')) {
-                    alert('Please upload a CSV file');
-                    return;
-                }
-                
-                const formData = new FormData();
-                formData.append('file', file);
-                
-                // Show processing indicator
-                processingIndicator.style.display = 'block';
-                resultsContainer.style.display = 'none';
-                
-                // Send file to server for processing
-                fetch('/upload', {
-                    method: 'POST',
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        alert('Error: ' + data.error);
-                        processingIndicator.style.display = 'none';
-                        return;
-                    }
-                    
-                    // Store the analysis data
-                    analysisData = data;
-                    
-                    // Update UI with results
-                    updateResults(data);
-                    
-                    // Hide processing indicator and show results
-                    processingIndicator.style.display = 'none';
-                    resultsContainer.style.display = 'block';
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('An error occurred during processing');
-                    processingIndicator.style.display = 'none';
-                });
-            });
-            
-            // Export JSON button
-            document.getElementById('export-json').addEventListener('click', function() {
-                if (!analysisData) return;
-                
-                const dataStr = JSON.stringify(analysisData, null, 2);
-                const blob = new Blob([dataStr], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'malware_analysis_results.json';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            });
-            
-            // Export charts as PNG
-            document.getElementById('export-charts').addEventListener('click', function() {
-                if (!confusionMatrixChart) return;
-                
-                // Function to create a zip file of all charts
-                // For simplicity in this example, we'll just download the confusion matrix
-                const url = confusionMatrixChart.toBase64Image();
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'confusion_matrix.png';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            });
-            
-            function updateResults(data) {
-                // Update training metrics
-                document.getElementById('accuracy-value').textContent = (data.training.accuracy * 100).toFixed(1) + '%';
-                document.getElementById('f1-score-value').textContent = data.training.f1_score.toFixed(2);
-                document.getElementById('training-time-value').textContent = data.training.training_time + 's';
-                
-                // Update model details
-                const modelDetails = document.getElementById('model-details');
-                modelDetails.innerHTML = `
-                    <div class="card">
-                        <div class="card-header">Model Details</div>
-                        <div class="card-body">
-                            <p><strong>Type:</strong> ${data.training.model_details.type}</p>
-                            <p><strong>Features:</strong> ${data.training.model_details.features}</p>
-                        </div>
-                    </div>
-                `;
-                
-                // Update testing metrics
-                document.getElementById('detection-rate-value').textContent = (data.testing.detection_rate * 100).toFixed(1) + '%';
-                document.getElementById('false-positive-value').textContent = (data.testing.false_positive_rate * 100).toFixed(1) + '%';
-                document.getElementById('sample-count-value').textContent = data.testing.sample_count;
-                
-                // Update adversarial metrics
-                document.getElementById('evasion-rate-value').textContent = (data.adversarial.evasion_rate * 100).toFixed(1) + '%';
-                document.getElementById('modified-samples-value').textContent = data.adversarial.modified_samples;
-                document.getElementById('success-rate-value').textContent = (data.adversarial.success_rate * 100).toFixed(1) + '%';
-                
-                // Update attack types
-                const attackTypes = document.getElementById('attack-types');
-                attackTypes.innerHTML = `
-                    <div class="card">
-                        <div class="card-header">Attack Techniques Used</div>
-                        <div class="card-body">
-                            <ul>
-                                ${data.adversarial.attack_types.map(type => `<li>${type}</li>`).join('')}
-                            </ul>
-                        </div>
-                    </div>
-                `;
-                
-                // Update defense metrics
-                document.getElementById('improved-detection-value').textContent = (data.defense.improved_detection_rate * 100).toFixed(1) + '%';
-                document.getElementById('robustness-value').textContent = data.defense.robustness_score.toFixed(2);
-                
-                // Update defense techniques
-                const defenseTechniques = document.getElementById('defense-techniques');
-                defenseTechniques.innerHTML = `
-                    <div class="card">
-                        <div class="card-header">Defense Techniques Applied</div>
-                        <div class="card-body">
-                            <ul>
-                                ${data.defense.defense_techniques.map(technique => `<li>${technique}</li>`).join('')}
-                            </ul>
-                        </div>
-                    </div>
-                `;
-                
-                // Create confusion matrix chart
-                const ctxConfusion = document.getElementById('confusion-matrix-chart').getContext('2d');
-                if (confusionMatrixChart) confusionMatrixChart.destroy();
-                confusionMatrixChart = new Chart(ctxConfusion, {
-                    type: 'bar',
-                    data: {
-                        labels: ['True Negatives', 'False Positives', 'False Negatives', 'True Positives'],
-                        datasets: [{
-                            label: 'Confusion Matrix',
-                            data: [
-                                data.training.confusion_matrix[0][0], 
-                                data.training.confusion_matrix[0][1],
-                                data.training.confusion_matrix[1][0],
-                                data.training.confusion_matrix[1][1]
-                            ],
-                            backgroundColor: [
-                                'rgba(75, 192, 192, 0.6)',
-                                'rgba(255, 99, 132, 0.6)',
-                                'rgba(255, 159, 64, 0.6)',
-                                'rgba(54, 162, 235, 0.6)'
-                            ]
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: 'Confusion Matrix'
-                            }
-                        }
-                    }
-                });
-                
-                // Create detection rate chart
-                const ctxDetection = document.getElementById('detection-chart').getContext('2d');
-                if (detectionChart) detectionChart.destroy();
-                detectionChart = new Chart(ctxDetection, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['Detected', 'Missed'],
-                        datasets: [{
-                            data: [
-                                data.testing.detection_rate * 100,
-                                (1 - data.testing.detection_rate) * 100
-                            ],
-                            backgroundColor: [
-                                'rgba(75, 192, 192, 0.6)',
-                                'rgba(255, 99, 132, 0.6)'
-                            ]
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: 'Malware Detection Rate'
-                            }
-                        }
-                    }
-                });
-                
-                // Create evasion rate chart
-                const ctxEvasion = document.getElementById('evasion-chart').getContext('2d');
-                if (evasionChart) evasionChart.destroy();
-                evasionChart = new Chart(ctxEvasion, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Original Detection', 'After Adversarial Attack'],
-                        datasets: [{
-                            label: 'Detection Rate',
-                            data: [
-                                data.testing.detection_rate * 100,
-                                (1 - data.adversarial.evasion_rate) * data.testing.detection_rate * 100
-                            ],
-                            backgroundColor: [
-                                'rgba(75, 192, 192, 0.6)',
-                                'rgba(255, 159, 64, 0.6)'
-                            ]
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                max: 100,
-                                title: {
-                                    display: true,
-                                    text: 'Detection Rate (%)'
-                                }
-                            }
-                        },
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: 'Impact of Adversarial Attacks'
-                            }
-                        }
-                    }
-                });
-                
-                // Create defense improvement chart
-                const ctxDefense = document.getElementById('defense-improvement-chart').getContext('2d');
-                if (defenseChart) defenseChart.destroy();
-                defenseChart = new Chart(ctxDefense, {
-                    type: 'bar',
-                    data: {
-                        labels: ['Original', 'With Adversarial Attack', 'With Defenses'],
-                        datasets: [{
-                            label: 'Detection Rate',
-                            data: [
-                                data.testing.detection_rate * 100,
-                                (1 - data.adversarial.evasion_rate) * data.testing.detection_rate * 100,
-                                data.defense.improved_detection_rate * 100
-                            ],
-                            backgroundColor: [
-                                'rgba(75, 192, 192, 0.6)',
-                                'rgba(255, 99, 132, 0.6)',
-                                'rgba(54, 162, 235, 0.6)'
-                            ]
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                max: 100,
-                                title: {
-                                    display: true,
-                                    text: 'Detection Rate (%)'
-                                }
-                            }
-                        },
-                        plugins: {
-                            title: {
-                                display: true,
-                                text: 'Defensive Strategy Performance'
-                            }
-                        }
-                    }
-                });
+
+    <!-- Loading -->
+    <div id="processing" class="text-center my-5" style="display: none;">
+      <div class="spinner-border text-primary" role="status"></div>
+      <h4 class="mt-3">Processing your data...</h4>
+    </div>
+
+    <!-- Results -->
+    <div id="results-container" class="results-container mt-4">
+      <h2 class="mb-4 text-center">Analysis Results</h2>
+
+      <!-- Model Selector -->
+      <div class="mb-3">
+        <label for="model-selector" class="form-label">Select Model to View Results:</label>
+        <select id="model-selector" class="form-select">
+          <option value="" disabled selected>Select a model</option>
+        </select>
+      </div>
+
+      <!-- Model Training Results -->
+      <div class="card section-card">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">Model Training Results</h5>
+        </div>
+        <div class="card-body">
+          <ul class="list-group mb-3">
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              Accuracy
+              <span id="accuracy-value" class="badge bg-primary rounded-pill">-</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              F1 Score
+              <span id="f1-score-value" class="badge bg-primary rounded-pill">-</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              Precision
+              <span id="precision-value" class="badge bg-primary rounded-pill">-</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              Recall
+              <span id="recall-value" class="badge bg-primary rounded-pill">-</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              Training Time
+              <span id="training-time-value" class="badge bg-secondary rounded-pill">-</span>
+            </li>
+          </ul>
+          <div id="model-details"></div>
+          <div id="shap-values"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const form = document.getElementById("upload-form");
+      const fileInput = document.getElementById("file-upload");
+      const processingIndicator = document.getElementById("processing");
+      const resultsContainer = document.getElementById("results-container");
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const file = fileInput.files[0];
+        if (!file) {
+          alert("Please select a CSV file to upload");
+          return;
+        }
+        if (!file.name.endsWith(".csv")) {
+          alert("Please upload a valid CSV file");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        processingIndicator.style.display = "block";
+        resultsContainer.style.display = "none";
+
+        fetch("/upload", {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.error) {
+              alert("Error: " + data.error);
+              processingIndicator.style.display = "none";
+              return;
             }
-        });
-    </script>
+            updateResults(data);
+            processingIndicator.style.display = "none";
+            resultsContainer.style.display = "block";
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            alert("An error occurred during processing");
+            processingIndicator.style.display = "none";
+          });
+      });
+
+      function updateResults(data) {
+        const modelSelector = document.getElementById("model-selector");
+        const models = Object.keys(data);
+        modelSelector.innerHTML = models.map(model => `<option value="${model}">${model}</option>`).join("");
+        modelSelector.value = models[0];
+
+        modelSelector.addEventListener("change", () => displayMetrics(modelSelector.value));
+        displayMetrics(modelSelector.value);
+
+        function displayMetrics(modelKey) {
+          const modelData = data[modelKey];
+
+          document.getElementById("accuracy-value").textContent = (modelData.accuracy * 100).toFixed(2) + "%";
+          document.getElementById("f1-score-value").textContent = modelData.f1_score.toFixed(2);
+          document.getElementById("precision-value").textContent = modelData.precision.toFixed(2);
+          document.getElementById("recall-value").textContent = modelData.recall.toFixed(2);
+          document.getElementById("training-time-value").textContent = modelData.training_time + "s";
+
+          const modelDetails = document.getElementById("model-details");
+          modelDetails.innerHTML = `
+            <div class="card mt-3">
+              <div class="card-header">Model Details</div>
+              <div class="card-body">
+                <p><strong>Type:</strong> ${modelData.model_details.type}</p>
+                <p><strong>Features:</strong> ${modelData.model_details.features}</p>
+              </div>
+            </div>
+          `;
+
+          const shapSection = document.getElementById("shap-values");
+          const shapValues = modelData.shap_values || {};
+          shapSection.innerHTML = `
+            <div class="card mt-3">
+              <div class="card-header">Top SHAP Features</div>
+              <div class="card-body">
+                <ul>
+					${Object.entries(shapValues)
+						.sort((a, b) => b[1] - a[1])  // Sort by value descending
+						.map(([feature, val]) => `<li>${feature}: ${val.toFixed(4)}</li>`)
+					.join('')}
+				</ul>
+              </div>
+            </div>
+          `;
+        }
+      }
+    });
+  </script>
 </body>
 </html>
