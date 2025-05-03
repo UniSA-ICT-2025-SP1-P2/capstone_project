@@ -1,0 +1,146 @@
+from flask import Flask, request, jsonify, render_template
+import pandas as pd
+import numpy as np
+import time
+import logging
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.model_selection import GroupShuffleSplit
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+
+app = Flask(__name__)
+logging.basicConfig(level=logging.INFO)
+
+# --- Helper functions for parsing Category strings ---
+def find_category(file_name):
+    return file_name.split("-")[0] if "-" in file_name else file_name
+
+def find_category_name(file_name):
+    parts = file_name.split("-")
+    return parts[1] if len(parts) > 1 else file_name
+
+def extract_unique_file_id(file_name):
+    return file_name.rsplit('-', 1)[0]
+
+# --- Main model pipeline ---
+def run_all_models(df):
+    start_time = time.time()
+    logging.info(f"Loaded dataset with shape {df.shape}")
+
+    # Preprocess
+    df.ffill(inplace=True)
+    df["category"] = df["Category"].apply(find_category)
+    df["category_name"] = df["Category"].apply(find_category_name)
+    df["unique_file_id"] = df["Category"].apply(extract_unique_file_id)
+    le_catname = LabelEncoder()
+    df["category_name_encoded"] = le_catname.fit_transform(df["category_name"])
+    df['group_id'] = df.apply(lambda row: row['unique_file_id'] if row['Class'] != 'Benign' else f"benign_{row.name}", axis=1)
+
+    # Features and target
+    X = df.drop(columns=['Category', 'Class', 'category', 'category_name', 'category_name_encoded', 'unique_file_id', 'group_id'])
+    y = df["category_name_encoded"]
+
+    # Train/test split using group-wise shuffling
+    gss = GroupShuffleSplit(n_splits=1, test_size=0.3, random_state=42)
+    train_idx, test_idx = next(gss.split(df, groups=df['group_id']))
+    X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+    y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+
+    # Models to run
+    classifiers = {
+        "LogisticRegression": (LogisticRegression(max_iter=1000), True),
+        "KNN": (KNeighborsClassifier(n_neighbors=5), True),
+        "DecisionTree": (DecisionTreeClassifier(max_depth=5), False)
+    }
+
+    results = {}
+
+    for model_name, (model, scale_required) in classifiers.items():
+        logging.info(f"Training model: {model_name}")
+
+        if scale_required:
+            pipeline = Pipeline([
+                ("scaler", StandardScaler()),
+                ("clf", model)
+            ])
+        else:
+            pipeline = model
+
+        pipeline.fit(X_train, y_train)
+        y_pred = pipeline.predict(X_test)
+
+        # Feature importance
+        feature_importance = {}
+        try:
+            if hasattr(pipeline, 'feature_importances_'):
+                importances = pipeline.feature_importances_
+                indices = np.argsort(importances)[::-1]
+                for i in indices[:10]:
+                    feature_importance[X.columns[i]] = float(importances[i])
+
+            elif scale_required and hasattr(pipeline.named_steps['clf'], 'coef_'):
+                coef = pipeline.named_steps['clf'].coef_
+                # Average across classes if multiclass
+                if coef.ndim > 1:
+                    coef = np.mean(np.abs(coef), axis=0)
+                else:
+                    coef = np.abs(coef)
+                indices = np.argsort(coef)[::-1]
+                for i in indices[:10]:
+                    feature_importance[X.columns[i]] = float(coef[i])
+
+            elif hasattr(pipeline, 'coef_'):
+                coef = pipeline.coef_
+                if coef.ndim > 1:
+                    coef = np.mean(np.abs(coef), axis=0)
+                else:
+                    coef = np.abs(coef)
+                indices = np.argsort(coef)[::-1]
+                for i in indices[:10]:
+                    feature_importance[X.columns[i]] = float(coef[i])
+
+            else:
+                logging.info(f"{model_name} does not support feature importance")
+        except Exception as e:
+            logging.warning(f"Failed to extract feature importance for {model_name}: {e}")
+
+        results[model_name] = {
+            "accuracy": round(accuracy_score(y_test, y_pred), 4),
+            "f1_score": round(f1_score(y_test, y_pred, average="weighted", zero_division=0), 4),
+            "precision": round(precision_score(y_test, y_pred, average="weighted", zero_division=0), 4),
+            "recall": round(recall_score(y_test, y_pred, average="weighted", zero_division=0), 4),
+            "training_time": round(time.time() - start_time, 2),
+            "model_details": {
+                "type": type(model).__name__,
+                "features": X.shape[1]
+            },
+            "shap_values": feature_importance
+        }
+
+    logging.info("Completed training all models.")
+    return results
+
+# --- Flask routes ---
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/upload', methods=['POST'])
+def upload():
+    file = request.files.get('file')
+    if not file:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    try:
+        df = pd.read_csv(file)
+        results = run_all_models(df)
+        return jsonify(results)
+    except Exception as e:
+        logging.exception("Error processing file")
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(debug=True)

@@ -1,1 +1,200 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Adversarial Malware Analysis</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
+  <style>
+    .section-card {
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+    }
+    .results-container {
+      display: none;
+    }
+    .spinner-border {
+      width: 3rem;
+      height: 3rem;
+    }
+    .chart-container {
+      height: 300px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-4">
+    <h1 class="mb-4 text-center">Adversarial Malware Analysis System</h1>
 
+    <!-- Upload Section -->
+    <div class="card section-card">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Upload Dataset</h5>
+      </div>
+      <div class="card-body">
+        <form id="upload-form">
+          <div class="mb-3">
+            <label for="file-upload" class="form-label">Select CSV file with malware samples:</label>
+            <input class="form-control" type="file" id="file-upload" accept=".csv" />
+            <div class="form-text">Please upload a CSV file containing the malware samples for analysis.</div>
+          </div>
+          <button type="submit" class="btn btn-primary">Analyse Dataset</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="processing" class="text-center my-5" style="display: none;">
+      <div class="spinner-border text-primary" role="status"></div>
+      <h4 class="mt-3">Processing your data...</h4>
+    </div>
+
+    <!-- Results -->
+    <div id="results-container" class="results-container mt-4">
+      <h2 class="mb-4 text-center">Analysis Results</h2>
+
+      <!-- Model Selector -->
+      <div class="mb-3">
+        <label for="model-selector" class="form-label">Select Model to View Results:</label>
+        <select id="model-selector" class="form-select">
+          <option value="" disabled selected>Select a model</option>
+        </select>
+      </div>
+
+      <!-- Model Training Results -->
+      <div class="card section-card">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">Model Training Results</h5>
+        </div>
+        <div class="card-body">
+          <ul class="list-group mb-3">
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              Accuracy
+              <span id="accuracy-value" class="badge bg-primary rounded-pill">-</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              F1 Score
+              <span id="f1-score-value" class="badge bg-primary rounded-pill">-</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              Precision
+              <span id="precision-value" class="badge bg-primary rounded-pill">-</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              Recall
+              <span id="recall-value" class="badge bg-primary rounded-pill">-</span>
+            </li>
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              Training Time
+              <span id="training-time-value" class="badge bg-secondary rounded-pill">-</span>
+            </li>
+          </ul>
+          <div id="model-details"></div>
+          <div id="shap-values"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const form = document.getElementById("upload-form");
+      const fileInput = document.getElementById("file-upload");
+      const processingIndicator = document.getElementById("processing");
+      const resultsContainer = document.getElementById("results-container");
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const file = fileInput.files[0];
+        if (!file) {
+          alert("Please select a CSV file to upload");
+          return;
+        }
+        if (!file.name.endsWith(".csv")) {
+          alert("Please upload a valid CSV file");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        processingIndicator.style.display = "block";
+        resultsContainer.style.display = "none";
+
+        fetch("/upload", {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.error) {
+              alert("Error: " + data.error);
+              processingIndicator.style.display = "none";
+              return;
+            }
+            updateResults(data);
+            processingIndicator.style.display = "none";
+            resultsContainer.style.display = "block";
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            alert("An error occurred during processing");
+            processingIndicator.style.display = "none";
+          });
+      });
+
+      function updateResults(data) {
+        const modelSelector = document.getElementById("model-selector");
+        const models = Object.keys(data);
+        modelSelector.innerHTML = models.map(model => `<option value="${model}">${model}</option>`).join("");
+        modelSelector.value = models[0];
+
+        modelSelector.addEventListener("change", () => displayMetrics(modelSelector.value));
+        displayMetrics(modelSelector.value);
+
+        function displayMetrics(modelKey) {
+          const modelData = data[modelKey];
+
+          document.getElementById("accuracy-value").textContent = (modelData.accuracy * 100).toFixed(2) + "%";
+          document.getElementById("f1-score-value").textContent = modelData.f1_score.toFixed(2);
+          document.getElementById("precision-value").textContent = modelData.precision.toFixed(2);
+          document.getElementById("recall-value").textContent = modelData.recall.toFixed(2);
+          document.getElementById("training-time-value").textContent = modelData.training_time + "s";
+
+          const modelDetails = document.getElementById("model-details");
+          modelDetails.innerHTML = `
+            <div class="card mt-3">
+              <div class="card-header">Model Details</div>
+              <div class="card-body">
+                <p><strong>Type:</strong> ${modelData.model_details.type}</p>
+                <p><strong>Features:</strong> ${modelData.model_details.features}</p>
+              </div>
+            </div>
+          `;
+
+          const shapSection = document.getElementById("shap-values");
+          const shapValues = modelData.shap_values || {};
+          shapSection.innerHTML = `
+            <div class="card mt-3">
+              <div class="card-header">Top SHAP Features</div>
+              <div class="card-body">
+                <ul>
+					${Object.entries(shapValues)
+						.sort((a, b) => b[1] - a[1])  // Sort by value descending
+						.map(([feature, val]) => `<li>${feature}: ${val.toFixed(4)}</li>`)
+					.join('')}
+				</ul>
+              </div>
+            </div>
+          `;
+        }
+      }
+    });
+  </script>
+</body>
+</html>
