@@ -4,27 +4,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
 import joblib
-
-# Import from parent folder
 from predict import predict
 
-# === Base directory setup ===
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-
-def run_concept_drift(data_path, model_type='ensemble', chunk_size=500, drift_threshold=0.7, output_path=None):
-    # Load Test Data
+def run_concept_drift(data_path, model_type, chunk_size, threshold, results_dir):
+    # === Load Data ===
     df = pd.read_csv(data_path)
     X = df.drop(columns=['label']).values
     y_true = df['label'].values
 
-    # Load label encoder
-    label_encoder_path = os.path.join(BASE_DIR, '..', 'models', 'label_encoder.pkl')
-    label_encoder = joblib.load(label_encoder_path)
+    # === Load label encoder ===
+    label_encoder_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'models', 'label_encoder.pkl'))
 
+    print("Resolved label encoder path:", label_encoder_path)
+    label_encoder = joblib.load(label_encoder_path)
     y_true_encoded = label_encoder.transform(y_true)
 
-    # === Chunk Data and Evaluate ===
+    # === Evaluate in chunks ===
     accuracy_per_chunk = []
     chunk_starts = list(range(0, len(X), chunk_size))
 
@@ -41,13 +37,13 @@ def run_concept_drift(data_path, model_type='ensemble', chunk_size=500, drift_th
         accuracy_per_chunk.append(acc)
 
         print(f"Chunk {idx+1}: Accuracy = {acc:.4f}")
-        if acc < drift_threshold:
-            print(f"Drift Alert at Chunk {idx+1}: Accuracy {acc:.4f} below threshold {drift_threshold}")
+        if acc < threshold:
+            print(f"Drift Alert at Chunk {idx+1}: Accuracy {acc:.4f} below threshold {threshold}")
 
     # === Plot Accuracy Over Time ===
     plt.figure(figsize=(10, 5))
-    plt.plot(range(1, len(accuracy_per_chunk) + 1), accuracy_per_chunk, marker='o')
-    plt.axhline(y=drift_threshold, color='r', linestyle='--', label='Drift Threshold')
+    plt.plot(range(1, len(accuracy_per_chunk)+1), accuracy_per_chunk, marker='o')
+    plt.axhline(y=threshold, color='r', linestyle='--', label='Drift Threshold')
     plt.xlabel("Chunk (Simulated Time Step)")
     plt.ylabel("Accuracy")
     plt.title(f"Concept Drift Detection - {model_type.upper()} Model")
@@ -56,26 +52,30 @@ def run_concept_drift(data_path, model_type='ensemble', chunk_size=500, drift_th
     plt.tight_layout()
     plt.show()
 
-    # === Save Chunk Accuracies ===
+    # === Save Results ===
+    os.makedirs(results_dir, exist_ok=True)
     results_df = pd.DataFrame({
-        'chunk': range(1, len(accuracy_per_chunk) + 1),
+        'chunk': range(1, len(accuracy_per_chunk)+1),
         'accuracy': accuracy_per_chunk
     })
+    results_df.to_csv(os.path.join(results_dir, 'concept_drift_results.csv'), index=False)
 
-    if not output_path:
-        output_path = os.path.join(BASE_DIR, '..', 'results', 'concept_drift_results.csv')
-
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    results_df.to_csv(output_path, index=False)
-    print(f"Drift detection results saved to {output_path}")
+    print("Drift detection results saved.")
 
 
-# === CLI usage ===
+# === CLI fallback ===
 if __name__ == "__main__":
-    default_data_path = os.path.abspath(os.path.join(BASE_DIR, '..', '..', 'data', 'test_label.csv'))
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))                          # /src/defences/
+    DEFENCE_PROTOTYPE_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))         # /src/
+    PROTOTYPE_DIR = os.path.abspath(os.path.join(DEFENCE_PROTOTYPE_DIR, '..'))    # /defence_prototype/
+
+    data_path = os.path.join(PROTOTYPE_DIR, 'data', 'test_label.csv')
+    results_dir = os.path.join(DEFENCE_PROTOTYPE_DIR, 'results')
+
     run_concept_drift(
-        data_path=default_data_path,
+        data_path=data_path,
         model_type='ensemble',
         chunk_size=500,
-        drift_threshold=0.7
+        threshold=0.7,
+        results_dir=results_dir
     )

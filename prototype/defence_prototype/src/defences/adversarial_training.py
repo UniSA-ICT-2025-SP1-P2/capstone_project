@@ -69,11 +69,12 @@ def run_adversarial_training(data_dir, model_dir, epochs=10, lr=0.001):
 
 # CLI fallback
 if __name__ == "__main__":
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))                           # /src/defences/
-    DEFENCE_PROTOTYPE_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))          # /src/
-    PROTOTYPE_DIR = os.path.abspath(os.path.join(DEFENCE_PROTOTYPE_DIR, '..'))     # /prototype/
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))                           # /src/defences
+    SRC_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))                         # /src
+    DEFENCE_PROTOTYPE_DIR = os.path.abspath(os.path.join(SRC_DIR, '..'))            # /defence_prototype
+    PROJECT_ROOT = os.path.abspath(os.path.join(DEFENCE_PROTOTYPE_DIR, '..'))       # /capstone_project
 
-    DATA_DIR = os.path.join(PROTOTYPE_DIR, 'data')
+    DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
     MODEL_DIR = os.path.join(DEFENCE_PROTOTYPE_DIR, 'models')
 
     run_adversarial_training(DATA_DIR, MODEL_DIR)

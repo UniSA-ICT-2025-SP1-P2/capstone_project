@@ -3,11 +3,12 @@ from defences import feature_smoothing, concept_drift
 from defences import adversarial_training  # Ensure this module has a callable function
 
 # === Define project paths ===
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFENCE_PROTOTYPE_DIR = os.path.abspath(os.path.join(BASE_DIR))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
+DEFENCE_PROTOTYPE_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))
 PROTOTYPE_DIR = os.path.abspath(os.path.join(DEFENCE_PROTOTYPE_DIR, '..'))
+PROJECT_ROOT = os.path.abspath(os.path.join(DEFENCE_PROTOTYPE_DIR, '..'))  # /prototype/
 
-DATA_DIR = os.path.join(PROTOTYPE_DIR, 'data')
+DATA_DIR = os.path.join(PROJECT_ROOT, 'data') 
 MODEL_DIR = os.path.join(DEFENCE_PROTOTYPE_DIR, 'models')
 RESULTS_DIR = os.path.join(DEFENCE_PROTOTYPE_DIR, 'results')
 
@@ -52,6 +53,6 @@ def test_adversarial_training():
 # === Choose which to run ===
 if __name__ == "__main__":
     # Uncomment the ones you want to test
-    # test_feature_smoothing()
-    # test_concept_drift()
-    test_adversarial_training()
+    test_feature_smoothing()
+    test_concept_drift()
+    # test_adversarial_training()
