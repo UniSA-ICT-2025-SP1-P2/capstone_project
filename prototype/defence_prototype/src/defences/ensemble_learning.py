@@ -7,6 +7,10 @@ from sklearn.metrics import accuracy_score, f1_score
 from sklearn.ensemble import RandomForestClassifier
 import os
 
+script_dir = os.path.dirname(os.path.abspath(__file__))
+data_path = os.path.join(script_dir, '../../../data/validation_label.csv')
+model_dir = os.path.join(script_dir, '../../models')
+
 class SimpleNN(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(SimpleNN, self).__init__()
@@ -58,5 +62,5 @@ def run_ensemble_evaluation(data_path, model_dir):
 
 # Optional CLI usage
 if __name__ == "__main__":
-    result = run_ensemble_evaluation('../../../data/validation_label.csv', '../../models')
+    result = run_ensemble_evaluation(os.path.normpath(data_path), os.path.normpath(model_dir))
     print(result)
