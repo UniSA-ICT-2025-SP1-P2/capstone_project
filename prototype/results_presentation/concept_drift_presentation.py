@@ -38,43 +38,44 @@ def load_csv_data(filename="concept_drift_results.csv"):
 # Main visualization function
 def visualize_concept_drift():
 
-    #Load data
+    # Load data
     df = load_csv_data()
     
     # Create figure with multiple plots
-    fig = plt.figure(figsize=(14, 12))
-    gs = gridspec.GridSpec(3, 2, height_ratios=[1, 1, 1])
-    
+    fig = plt.figure(figsize=(16, 16))
+    gs = gridspec.GridSpec(3, 2, height_ratios=[1, 1, 1], hspace=0.5, wspace=0.4)
+
     # 1. Line Plot with Critical Points
-    ax1 = plt.subplot(gs[0, :])
+    ax1 = fig.add_subplot(gs[0, :])
     create_line_plot_with_critical_points(df, ax1)
     
     # 2. Heatmap
-    ax2 = plt.subplot(gs[1, 0])
+    ax2 = fig.add_subplot(gs[1, 0])
     create_heatmap(df, ax2)
     
     # 3. Distribution Change Analysis
-    ax3 = plt.subplot(gs[1, 1])
+    ax3 = fig.add_subplot(gs[1, 1])
     create_distribution_analysis(df, ax3)
     
     # 4. Drift Magnitude Plot
-    ax4 = plt.subplot(gs[2, 0])
+    ax4 = fig.add_subplot(gs[2, 0])
     create_drift_magnitude_plot(df, ax4)
     
     # 5. Segmented Performance Analysis
-    ax5 = plt.subplot(gs[2, 1])
+    ax5 = fig.add_subplot(gs[2, 1])
     create_segmented_performance(df, ax5)
     
-    # Add title and adjust layout
-    plt.suptitle("Comprehensive Analysis of Concept Drift in Model Performance", fontsize=16, fontweight='bold', y=0.98)
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
-    plt.subplots_adjust(hspace=0.35, wspace=0.25)
+    # Add title
+    fig.suptitle("Comprehensive Analysis of Concept Drift in Model Performance", fontsize=18, fontweight='bold', y=0.98)
     
-    #Save figure
-    plt.savefig("concept_drift_analysis.png", dpi=300, bbox_inches='tight')
+    # Adjust spacing and layout
+    fig.subplots_adjust(hspace=0.5, wspace=0.4, top=0.92)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])  # Leave space for suptitle
+    
+    # Save and show
+    fig.savefig("concept_drift_analysis.png", dpi=300, bbox_inches='tight', pad_inches=0.5, facecolor='white')
     plt.show()
-
-    print(f"Graph successfully exported to concept_drift_analysis.png")
+    print("Main visualization completed and saved to 'concept_drift_analysis.png'")
 
 # 1. Line Plot with Critical Points and Context
 def create_line_plot_with_critical_points(df,ax):
@@ -125,6 +126,13 @@ def create_line_plot_with_critical_points(df,ax):
     ax.grid(True, linestyle='--', alpha=0.7)
     ax.legend(loc='lower left', fontsize=9)
 
+    #Save figure
+    output_file = "concept_drift_lineplot.png"
+    plt.show()
+    #plt.savefig(output_file, dpi=300, bbox_inches='tight')
+    plt.close()
+
+    print(f"Graph successfully exported to {output_file}")
 
 # 2. Heatmap visualization
 def create_heatmap(df, ax):
@@ -149,20 +157,11 @@ def create_heatmap(df, ax):
     ax.set_yticks([])
     ax.set_xlabel('Data Chunk')
     ax.set_title('Accuracy Heatmap Visualization', fontsize=12)
-    
-    # Add colorbar
-    plt.colorbar(im, ax=ax, label='Accuracy')
 
-    #Save figure
-    output_file = "concept_drift_heatmap.png"
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    plt.close()
-
-    print(f"Graph successfully exported to {output_file}")
+    return ax
 
 # 3. Distribution Change Analysis
 def create_distribution_analysis(df, ax):
-
 
     # Define periods for comparison
     period1 = df.loc[df['chunk'] <= 17, 'accuracy']  # Stable period
@@ -217,12 +216,7 @@ def create_distribution_analysis(df, ax):
     ax.legend()
     ax.grid(True, linestyle='--', alpha=0.3)
 
-    #Save figure
-    output_file = "distribution_change_analysis.png"
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    plt.close()
-
-    print(f"Graph successfully exported to {output_file}")
+    return ax
 
 # 4. Drift Magnitude Analysis
 def create_drift_magnitude_plot(df, ax ):
@@ -265,12 +259,7 @@ def create_drift_magnitude_plot(df, ax ):
     ax.legend()
     ax.grid(True, linestyle='--', alpha=0.3)
 
-    #Save figure
-    output_file="Drift_Magnitude_Analysis.png"
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    plt.close()
-
-    print(f"Graph successfully exported to {output_file}")
+    return ax
 
 # 5. Segmented Performance Analysis
 def create_segmented_performance(df, ax):
@@ -315,9 +304,8 @@ def create_segmented_performance(df, ax):
     
     ax.grid(True, linestyle='--', alpha=0.3)
 
-    #Save figure
-    output_file="Segmented_Performance_Analysis.png"
-    plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    plt.close()
+    return ax
 
-    print(f"Graph successfully exported to {output_file}")
+#run code
+if __name__ == "__main__":
+    visualize_concept_drift()
