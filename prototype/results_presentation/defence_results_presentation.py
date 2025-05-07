@@ -178,14 +178,16 @@ def create_advanced_performance_comparison(csv_file="defence_results.csv", outpu
     Create a sophisticated comparison of model performance across metrics
     
     Parameters:
-    df (pandas.DataFrame): Input data
-    output_file (str): Path to save the visualisation
+    csv_file (str): Path to the CSV file containing performance data
+    output_file (str): Path to save the visualization
     """
+    
     # Read the CSV file
     df = pd.read_csv(csv_file)
     
-    # Create custom color palette
-    colors = sns.color_palette("viridis", n_colors=len(df['model'].unique()))
+    # Create colorblind-friendly palette
+    # Using a colorblind-friendly palette from ColorBrewer
+    colors = ['#1b9e77', '#d95f02', '#7570b3']
     model_colors = dict(zip(df['model'].unique(), colors))
     
     # Set up figure with GridSpec for complex layout
@@ -195,15 +197,19 @@ def create_advanced_performance_comparison(csv_file="defence_results.csv", outpu
     # Plot 1: Bar plot with error bars (top left)
     ax1 = plt.subplot(gs[0, 0])
     
-    # Create bar plot for accuracy
+    # Calculate improvement percentages for accuracy
+    pivot_acc = df.pivot_table(index='model', columns='defence', values='accuracy')
+    pivot_acc['improvement'] = (pivot_acc['feature_smoothing'] - pivot_acc['none']) / pivot_acc['none'] * 100
+    
+    # Create bar plot for accuracy with improved styling
     ax1 = sns.barplot(
         x='model',
         y='accuracy',
         hue='defence',
         data=df,
-        palette='viridis',
+        palette=['#2c7fb8', '#7fcdbb'],  # Blue for none, teal for feature_smoothing
         ax=ax1,
-        alpha=0.8
+        alpha=0.85
     )
     
     # Enhance with actual values
@@ -215,8 +221,24 @@ def create_advanced_performance_comparison(csv_file="defence_results.csv", outpu
             f'{height:.4f}',
             ha="center", 
             fontsize=9,
-            rotation=45
+            color='black',
+            fontweight='bold'
         )
+    
+    # Add improvement percentages for each model
+    for i, model in enumerate(pivot_acc.index):
+        improvement = pivot_acc.loc[model, 'improvement']
+        if abs(improvement) >= 0.1:  # Only show if change is at least 0.1%
+            color = 'green' if improvement > 0 else 'red'
+            ax1.text(
+                i, 
+                0.05,
+                f"{improvement:+.2f}%",
+                ha="center", 
+                fontsize=10,
+                color=color,
+                fontweight='bold'
+            )
     
     ax1.set_title('Model Accuracy by Defence Method', fontweight='bold')
     ax1.set_xlabel('Model')
@@ -226,15 +248,19 @@ def create_advanced_performance_comparison(csv_file="defence_results.csv", outpu
     # Plot 2: Bar plot for F1 score (top right)
     ax2 = plt.subplot(gs[0, 1])
     
-    # Create bar plot for f1_score
+    # Calculate improvement percentages for F1 score
+    pivot_f1 = df.pivot_table(index='model', columns='defence', values='f1_score')
+    pivot_f1['improvement'] = (pivot_f1['feature_smoothing'] - pivot_f1['none']) / pivot_f1['none'] * 100
+    
+    # Create bar plot for f1_score with improved styling
     ax2 = sns.barplot(
         x='model',
         y='f1_score',
         hue='defence',
         data=df,
-        palette='viridis',
+        palette=['#2c7fb8', '#7fcdbb'],  # Blue for none, teal for feature_smoothing
         ax=ax2,
-        alpha=0.8
+        alpha=0.85
     )
     
     # Enhance with actual values
@@ -246,56 +272,136 @@ def create_advanced_performance_comparison(csv_file="defence_results.csv", outpu
             f'{height:.4f}',
             ha="center", 
             fontsize=9,
-            rotation=45
+            color='black',
+            fontweight='bold'
         )
+    
+    # Add improvement percentages for each model
+    for i, model in enumerate(pivot_f1.index):
+        improvement = pivot_f1.loc[model, 'improvement']
+        if abs(improvement) >= 0.1:  # Only show if change is at least 0.1%
+            color = 'green' if improvement > 0 else 'red'
+            ax2.text(
+                i, 
+                0.05,
+                f"{improvement:+.2f}%",
+                ha="center", 
+                fontsize=10,
+                color=color,
+                fontweight='bold'
+            )
     
     ax2.set_title('Model F1 Score by Defence Method', fontweight='bold')
     ax2.set_xlabel('Model')
     ax2.set_ylabel('F1 Score')
     ax2.grid(axis='y', linestyle='--', alpha=0.7)
     
-    # Plot 3: Radar chart (bottom left)
-    ax3 = plt.subplot(gs[1, 0], polar=True)
+    # Plot 3: Performance metrics comparison (bottom left)
+    ax3 = plt.subplot(gs[1, 0])
     
-    # Prepare data for radar chart
-    # Pivot the data for the radar chart
-    radar_data = df.pivot_table(
-        index=['model', 'defence'], 
-        values=['accuracy', 'f1_score']
-    ).reset_index()
-    
-    # Number of variables
-    categories = ['Accuracy', 'F1 Score']
-    N = len(categories)
-    
-    # What will be the angle of each axis in the plot
-    angles = [n / float(N) * 2 * np.pi for n in range(N)]
-    angles += angles[:1]  # Close the loop
-    
-    # Draw the radar chart for each model-defence combination
-    for i, (idx, row) in enumerate(radar_data.iterrows()):
-        model = row['model']
-        defence = row['defence']
-        values = [row['accuracy'], row['f1_score']]
-        values += values[:1]  # Close the loop
+    # Create a dot plot instead of radar chart - better for direct comparisons
+    # Before using precision and recall, check if they exist in the dataframe
+    metrics = ['accuracy', 'f1_score']
+    if 'precision' in df.columns:
+        metrics.append('precision')
+    if 'recall' in df.columns:
+        metrics.append('recall')
         
-        # Set color based on model
-        color = model_colors[model]
-        
-        # Draw the shape
-        ax3.plot(angles, values, linewidth=2, linestyle='-', color=color, 
-                alpha=0.8 if defence == 'none' else 0.6, 
-                label=f"{model} ({defence})")
-        ax3.fill(angles, values, color=color, alpha=0.1)
+    # Melt the dataframe to get all metrics in a single column
+    df_metrics = df.melt(
+        id_vars=['model', 'defence'],
+        value_vars=metrics,
+        var_name='metric', 
+        value_name='value'
+    )
     
-    # Set radar chart attributes
-    ax3.set_xticks(angles[:-1])
-    ax3.set_xticklabels(categories)
-    ax3.set_title('Performance Metrics Comparison (Radar)', fontweight='bold', pad=20)
+    # Create the dot plot - split by defense method
+    # First, plot 'none' defense
+    sns.pointplot(
+        data=df_metrics[df_metrics['defence'] == 'none'],
+        x='metric',
+        y='value',
+        hue='model',
+        palette=colors,
+        markers='o',  # Circle marker
+        linestyles='-',  # Solid line
+        ax=ax3,
+        errwidth=2,
+        capsize=0.2
+    )
     
-    # Add a legend
+    # Then plot 'feature_smoothing' defense with different markers and linestyle
+    sns.pointplot(
+        data=df_metrics[df_metrics['defence'] == 'feature_smoothing'],
+        x='metric',
+        y='value',
+        hue='model',
+        palette=colors,
+        markers='s',  # Square marker
+        linestyles='--',  # Dashed line
+        ax=ax3,
+        errwidth=2,
+        capsize=0.2
+    )
+    
+    # Create a custom legend that includes defense methods
+    from matplotlib.lines import Line2D
     handles, labels = ax3.get_legend_handles_labels()
-    ax3.legend(handles, labels, loc='upper right', bbox_to_anchor=(0.1, 0.1))
+    defense_handles = [
+        Line2D([0], [0], marker='o', color='gray', linestyle='-', markersize=8, label='No Defense'),
+        Line2D([0], [0], marker='s', color='gray', linestyle='--', markersize=8, label='Feature Smoothing')
+    ]
+    # Remove the existing legend
+    ax3.get_legend().remove()
+
+    # Add a new legend with both model and defense information
+    ax3.legend(handles=handles + defense_handles, 
+               labels=labels + ['No Defense', 'Feature Smoothing'],
+               title='Model & Defense',
+               loc='best')
+    
+    ax3.set_title('Performance Metrics Comparison', fontweight='bold')
+    ax3.set_xlabel('Metric')
+    ax3.set_ylabel('Score')
+    ax3.grid(axis='y', linestyle='--', alpha=0.7)
+    ax3.set_ylim(0, 1.0)  # Set y-axis from 0 to 1 for better comparison
+    
+    # Add a table summarizing key findings
+    table_data = []
+    models = df['model'].unique()
+    
+    for model in models:
+        model_data = df[df['model'] == model]
+        
+        # Safely get values, handling potential missing data
+        try:
+            acc_none = model_data[model_data['defence'] == 'none']['accuracy'].values[0]
+            acc_fs = model_data[model_data['defence'] == 'feature_smoothing']['accuracy'].values[0]
+            f1_none = model_data[model_data['defence'] == 'none']['f1_score'].values[0]
+            f1_fs = model_data[model_data['defence'] == 'feature_smoothing']['f1_score'].values[0]
+            
+            acc_change = ((acc_fs - acc_none) / acc_none) * 100
+            f1_change = ((f1_fs - f1_none) / f1_none) * 100
+            
+            table_data.append([model, f"{acc_change:+.2f}%", f"{f1_change:+.2f}%"])
+        except (IndexError, ZeroDivisionError):
+            # Handle cases where data might be missing
+            table_data.append([model, "N/A", "N/A"])
+    
+    # Only create table if we have data
+    if table_data:
+        table = ax3.table(
+            cellText=table_data,
+            colLabels=['Model', 'Acc. Change', 'F1 Change'],
+            loc='bottom',
+            cellLoc='center',
+            bbox=[0.0, -0.35, 1.0, 0.2]
+        )
+        table.auto_set_font_size(False)
+        table.set_fontsize(9)
+        table.scale(1, 1.5)
+        
+        plt.subplots_adjust(bottom=0.25)
     
     # Plot 4: Heatmap comparison (bottom right)
     ax4 = plt.subplot(gs[1, 1])
@@ -320,15 +426,22 @@ def create_advanced_performance_comparison(csv_file="defence_results.csv", outpu
     # Create a composite metric for coloring (e.g., average of acc and F1)
     composite_score = (pivot_acc + pivot_f1) / 2
     
-    # Create heatmap
+    # Create a better colormap for the heatmap (yellow-green-blue)
+    cmap = LinearSegmentedColormap.from_list(
+        'custom_cmap', 
+        ['#4575b4', '#91bfdb', '#e0f3f8', '#ffffbf', '#fee090', '#fc8d59', '#d73027'][::-1]
+    )
+    
+    # Create heatmap with improved styling
     sns.heatmap(
         composite_score, 
         annot=annotations, 
         fmt='', 
-        cmap='viridis', 
+        cmap=cmap, 
         linewidths=.5, 
         cbar_kws={'label': 'Avg(Accuracy, F1)'},
-        ax=ax4
+        ax=ax4,
+        annot_kws={"fontsize": 9, "fontweight": "bold"}
     )
     
     ax4.set_title('Performance Metrics by Model and Defence', fontweight='bold')
@@ -339,14 +452,23 @@ def create_advanced_performance_comparison(csv_file="defence_results.csv", outpu
     plt.suptitle('Advanced Analysis of Model Performance with Defence Methods', 
                  fontsize=20, fontweight='bold', y=0.98)
     
-    # Adjust layout
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    # Add explanatory text box
+    description_text = """
+    Feature Smoothing Defence: A technique that reduces adversarial vulnerability by
+    smoothing input features, potentially at a small cost to performance on clean data.
     
-    # Add text explanation
-    fig.text(0.5, 0.02, 
-             "This visualization compares different models with and without defence mechanisms.\n"
-             "Higher values indicate better performance across both accuracy and F1 score metrics.", 
-             ha='center', fontsize=12, style='italic')
+    Key observations:
+    • Random Forest (rf) models significantly outperform other architectures
+    • Neural networks show minimal change with feature smoothing
+    • Best overall performance: Random Forest with no defence
+    """
+    
+    props = dict(boxstyle='round', facecolor='white', alpha=0.5)
+    fig.text(0.5, 0.02, description_text, ha='left', va='bottom', fontsize=11, 
+             bbox=props, transform=fig.transFigure)
+    
+    # Adjust layout
+    plt.tight_layout(rect=[0, 0.07, 1, 0.96])
     
     # Save figure
     plt.savefig(output_file, dpi=300, bbox_inches='tight')
@@ -690,11 +812,3 @@ def create_model_comparison_report(csv_file="defence_results.csv", output_file="
     
     print(f"Model comparison report saved to {output_file}")
     return fig
-
-#run code
-if __name__ == "__main__":
-    visualise_defence_results()
-    visualise_results_graph_simple()
-    create_advanced_performance_comparison()
-    create_defence_impact_analysis()
-    create_model_comparison_report()
