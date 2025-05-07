@@ -19,8 +19,7 @@
     }
     
     body {
-      background-color: #000000;
-	  color: #ffffff;
+      background-color: #f0f2f5;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
@@ -530,15 +529,30 @@
       // Simulate delay for demonstration purposes
       setTimeout(() => {
         fetch("/upload", { method: "POST", body: formData })
-          .then(res => res.json())
+          .then(res => {
+            // Check if response is OK
+            if (!res.ok) {
+              throw new Error(`Server responded with status: ${res.status}`);
+            }
+            return res.json();
+          })
           .then(data => {
+            if (!data) {
+              throw new Error("No data received from server");
+            }
             if (data.error) throw new Error(data.error);
+            
+            // Validate data structure before processing
+            if (typeof data !== 'object' || Object.keys(data).length === 0) {
+              throw new Error("Invalid data format received");
+            }
+            
             updateResults(data);
             document.getElementById("processing").style.display = "none";
             document.getElementById("results-container").style.display = "block";
           })
           .catch(err => {
-            console.error(err);
+            console.error("Error processing data:", err);
             alert("Error: " + err.message);
             document.getElementById("processing").style.display = "none";
           });
@@ -551,50 +565,70 @@
       selector.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join("");
       selector.onchange = () => displayMetrics(selector.value);
       displayMetrics(models[0]);
-	  
-	function displayMetrics(model) {
-		const d = data[model];
 
-		document.getElementById("accuracy-value").textContent = 
-		(typeof d.accuracy === "number" ? (d.accuracy * 100).toFixed(2) + "%" : "N/A");
+      function displayMetrics(model) {
+        const d = data[model];
+        
+        // Check if data values exist before using toFixed
+        const accuracy = d && d.accuracy ? (d.accuracy * 100).toFixed(2) + "%" : "-";
+        const f1Score = d && d.f1_score ? d.f1_score.toFixed(2) : "-";
+        const precision = d && d.precision ? d.precision.toFixed(2) : "-";
+        const recall = d && d.recall ? d.recall.toFixed(2) : "-";
+        const trainingTime = d && d.training_time ? d.training_time + "s" : "-";
+        
+        // Safely update UI elements
+        document.getElementById("accuracy-value").textContent = accuracy;
+        document.getElementById("f1-score-value").textContent = f1Score;
+        document.getElementById("precision-value").textContent = precision;
+        document.getElementById("recall-value").textContent = recall;
+        document.getElementById("training-time-value").textContent = trainingTime;
 
-		document.getElementById("f1-score-value").textContent = 
-		(typeof d.f1_score === "number" ? d.f1_score.toFixed(2) : "N/A");
+        // Safely handle model details
+        let modelDetailsHtml = `
+          <div class="card mt-3 model-details-card">
+            <div class="card-header bg-light">
+              <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Model Details</h5>
+            </div>
+            <div class="card-body">`;
+            
+        if (d && d.model_details) {
+          const type = d.model_details.type || "Not specified";
+          const features = d.model_details.features || "Not specified";
+          
+          modelDetailsHtml += `
+              <div class="mb-2">
+                <strong><i class="fas fa-code-branch me-2"></i>Type:</strong> ${type}
+              </div>
+              <div>
+                <strong><i class="fas fa-list me-2"></i>Features:</strong> ${features}
+              </div>`;
+        } else {
+          modelDetailsHtml += `<p>No model details available</p>`;
+        }
+        
+        modelDetailsHtml += `
+            </div>
+          </div>
+        `;
+        
+        document.getElementById("model-details").innerHTML = modelDetailsHtml;
 
-		document.getElementById("precision-value").textContent = 
-		(typeof d.precision === "number" ? d.precision.toFixed(2) : "N/A");
-
-		document.getElementById("recall-value").textContent = 
-		(typeof d.recall === "number" ? d.recall.toFixed(2) : "N/A");
-
-		document.getElementById("training-time-value").textContent = 
-		(typeof d.training_time !== "undefined" ? d.training_time + "s" : "N/A");
-
-		document.getElementById("model-details").innerHTML = `
-		<div class="card mt-3 model-details-card">
-			<div class="card-header bg-light">
-				<h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Model Details</h5>
-			</div>
-			<div class="card-body">
-				<div class="mb-2">
-					<strong><i class="fas fa-code-branch me-2"></i>Type:</strong> ${d.model_details?.type || "N/A"}
-				</div>
-				<div>
-					<strong><i class="fas fa-list me-2"></i>Features:</strong> ${d.model_details?.features || "N/A"}
-				</div>
-			</div>
-		</div>
-		`;
-
-		const shap = d.shap_values || {};
-		const shapHtml = Object.entries(shap)
-		.sort((a, b) => b[1] - a[1])
-		.map(([k, v]) => `
-		<div class="feature-item">
-			<span class="feature-name">${k}</span>
-			<span class="feature-value">${typeof v === "number" ? v.toFixed(4) : "N/A"}</span>
-		</div>
-		`).join("");
+        // Safely handle SHAP values
+        const shap = (d && d.shap_values) || {};
+        let shapHtml = '';
+        
+        if (Object.keys(shap).length > 0) {
+          shapHtml = Object.entries(shap)
+            .sort((a, b) => b[1] - a[1])
+            .map(([k, v]) => `
+              <div class="feature-item">
+                <span class="feature-name">${k}</span>
+                <span class="feature-value">${v.toFixed(4)}</span>
+              </div>
+            `).join("");
+        } else {
+          shapHtml = "<p>No SHAP values available</p>";
+        }
 
         document.getElementById("shap-values").innerHTML = `
           <div class="card mt-3 shap-values-card">
@@ -685,9 +719,16 @@
       };
       
       // For testing only - uncomment to see UI with mock data
-      // updateResults(mockData);
-      // document.getElementById("results-container").style.display = "block";
+      updateResults(mockData);
+      document.getElementById("results-container").style.display = "block";
     }
+    
+    // Load mock data automatically for testing
+    // Comment this out when connecting to real backend
+    document.addEventListener("DOMContentLoaded", function() {
+      // Uncomment the next line to automatically load mock data for testing
+      // setTimeout(loadMockData, 1000);
+    });
   </script>
 </body>
 </html>
