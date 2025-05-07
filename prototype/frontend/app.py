@@ -4,18 +4,19 @@ import pandas as pd
 from werkzeug.utils import secure_filename
 import traceback
 
-# Import custom modules
-from baseline_models import run_all_models
-from concept_drift_presentation import visualize_concept_drift
-from defence_results_presentation import visualise_defence_results
-from model_results import load_csv_data, create_model_results_table
+# Custom modules (update paths if necessary)
+from prototype.baseline_models.baseline_models_webUI import run_all_models
+from prototype.results_presentation.concept_drift_presentation import visualize_concept_drift
+from prototype.results_presentation.defence_results_presentation import visualise_defence_results
+from prototype.results_presentation.model_results import load_csv_data, create_model_results_table
 
-# Flask app setup
+# Flask setup
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['STATIC_FOLDER'] = 'static'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['STATIC_FOLDER'], exist_ok=True)
+
 
 @app.route('/')
 def index():
@@ -45,7 +46,7 @@ def upload_file():
         print(f"[INFO] Model training completed.")
         return jsonify(results)
     except Exception as e:
-        print("[ERROR] Exception occurred during processing:")
+        print("[ERROR] Exception during processing:")
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
@@ -55,6 +56,11 @@ def run_concept_drift():
     try:
         output_path = os.path.join(app.config['STATIC_FOLDER'], 'concept_drift_analysis.png')
         visualize_concept_drift()
+
+        if not os.path.exists(output_path):
+            print("[ERROR] Concept drift image not found.")
+            return jsonify({'error': 'Image generation failed'}), 500
+
         return jsonify({'image_path': '/static/concept_drift_analysis.png'})
     except Exception as e:
         print("[ERROR] Concept Drift:")
@@ -67,6 +73,10 @@ def run_defence_results():
     try:
         output_path = os.path.join(app.config['STATIC_FOLDER'], 'results_table_simple.png')
         visualise_defence_results(output_file=output_path)
+
+        if not os.path.exists(output_path):
+            return jsonify({'error': 'Image generation failed'}), 500
+
         return jsonify({'image_path': '/static/results_table_simple.png'})
     except Exception as e:
         print("[ERROR] Defence Results:")
@@ -80,9 +90,14 @@ def run_model_results():
         df = load_csv_data("model_results.csv")
         if df is None:
             return jsonify({'error': 'model_results.csv not found'}), 404
+
         img = create_model_results_table(df)
         output_path = os.path.join(app.config['STATIC_FOLDER'], 'model_results_table.png')
         img.save(output_path)
+
+        if not os.path.exists(output_path):
+            return jsonify({'error': 'Image save failed'}), 500
+
         return jsonify({'image_path': '/static/model_results_table.png'})
     except Exception as e:
         print("[ERROR] Model Results Table:")
