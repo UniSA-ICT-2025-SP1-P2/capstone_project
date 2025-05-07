@@ -42,14 +42,36 @@ def upload_file():
     try:
         df = pd.read_csv(filepath)
         print(f"[INFO] Loaded dataset with shape {df.shape}")
-        results = run_all_models(df)
+        raw_results = run_all_models(df)
         print(f"[INFO] Model training completed.")
-        return jsonify(results)
+
+        def safe_metric(val, decimal_places=4):
+            return round(val, decimal_places) if isinstance(val, (int, float)) else 0
+
+        def clean_model_data(model_data):
+            return {
+                "accuracy": safe_metric(model_data.get("accuracy")),
+                "f1_score": safe_metric(model_data.get("f1_score")),
+                "precision": safe_metric(model_data.get("precision")),
+                "recall": safe_metric(model_data.get("recall")),
+                "training_time": str(model_data.get("training_time", "N/A")),
+                "model_details": model_data.get("model_details", {}),
+                "shap_values": model_data.get("shap_values", {})
+            }
+
+        # Filter only dict results and clean them
+        cleaned_results = {}
+        for model_name, model_data in raw_results.items():
+            if isinstance(model_data, dict):
+                cleaned_results[model_name] = clean_model_data(model_data)
+            else:
+                print(f"[WARN] Skipping {model_name} - not a dict: {type(model_data)}")
+
+        return jsonify(cleaned_results)
     except Exception as e:
         print("[ERROR] Exception during processing:")
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/run_concept_drift')
 def run_concept_drift():
