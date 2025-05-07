@@ -1,10 +1,9 @@
-<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Adversarial Malware Analysis</title>
+  <title>Adversarial Malware Analysis Dashboard</title>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
   <style>
@@ -19,9 +18,11 @@
       width: 3rem;
       height: 3rem;
     }
-    .chart-container {
-      height: 300px;
-      margin-bottom: 20px;
+    img.result-img {
+      max-width: 100%;
+      border-radius: 5px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -37,164 +38,166 @@
       <div class="card-body">
         <form id="upload-form">
           <div class="mb-3">
-            <label for="file-upload" class="form-label">Select CSV file with malware samples:</label>
+            <label for="file-upload" class="form-label">Select CSV file:</label>
             <input class="form-control" type="file" id="file-upload" accept=".csv" />
-            <div class="form-text">Please upload a CSV file containing the malware samples for analysis.</div>
           </div>
           <button type="submit" class="btn btn-primary">Analyse Dataset</button>
         </form>
       </div>
     </div>
 
-    <!-- Loading -->
+    <!-- Processing Spinner -->
     <div id="processing" class="text-center my-5" style="display: none;">
       <div class="spinner-border text-primary" role="status"></div>
       <h4 class="mt-3">Processing your data...</h4>
     </div>
 
-    <!-- Results -->
+    <!-- Results Section -->
     <div id="results-container" class="results-container mt-4">
-      <h2 class="mb-4 text-center">Analysis Results</h2>
+      <h2 class="mb-4 text-center">Model Training Results</h2>
 
       <!-- Model Selector -->
       <div class="mb-3">
-        <label for="model-selector" class="form-label">Select Model to View Results:</label>
-        <select id="model-selector" class="form-select">
-          <option value="" disabled selected>Select a model</option>
-        </select>
+        <label for="model-selector" class="form-label">Select Model:</label>
+        <select id="model-selector" class="form-select"></select>
       </div>
 
-      <!-- Model Training Results -->
-      <div class="card section-card">
-        <div class="card-header bg-success text-white">
-          <h5 class="mb-0">Model Training Results</h5>
-        </div>
-        <div class="card-body">
-          <ul class="list-group mb-3">
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              Accuracy
-              <span id="accuracy-value" class="badge bg-primary rounded-pill">-</span>
-            </li>
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              F1 Score
-              <span id="f1-score-value" class="badge bg-primary rounded-pill">-</span>
-            </li>
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              Precision
-              <span id="precision-value" class="badge bg-primary rounded-pill">-</span>
-            </li>
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              Recall
-              <span id="recall-value" class="badge bg-primary rounded-pill">-</span>
-            </li>
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-              Training Time
-              <span id="training-time-value" class="badge bg-secondary rounded-pill">-</span>
-            </li>
-          </ul>
-          <div id="model-details"></div>
-          <div id="shap-values"></div>
-        </div>
+      <!-- Metrics -->
+      <ul class="list-group mb-3">
+        <li class="list-group-item d-flex justify-content-between align-items-center">Accuracy <span id="accuracy-value" class="badge bg-primary rounded-pill">-</span></li>
+        <li class="list-group-item d-flex justify-content-between align-items-center">F1 Score <span id="f1-score-value" class="badge bg-primary rounded-pill">-</span></li>
+        <li class="list-group-item d-flex justify-content-between align-items-center">Precision <span id="precision-value" class="badge bg-primary rounded-pill">-</span></li>
+        <li class="list-group-item d-flex justify-content-between align-items-center">Recall <span id="recall-value" class="badge bg-primary rounded-pill">-</span></li>
+        <li class="list-group-item d-flex justify-content-between align-items-center">Training Time <span id="training-time-value" class="badge bg-secondary rounded-pill">-</span></li>
+      </ul>
+
+      <div id="model-details"></div>
+      <div id="shap-values"></div>
+    </div>
+
+    <!-- Analysis Triggers -->
+    <div class="card section-card">
+      <div class="card-header bg-info text-white">
+        <h5 class="mb-0">Further Analysis</h5>
       </div>
+      <div class="card-body d-grid gap-2">
+        <button class="btn btn-outline-dark" onclick="runAnalysis('/run_concept_drift', 'concept-drift-image')">Run Concept Drift Analysis</button>
+        <button class="btn btn-outline-dark" onclick="runAnalysis('/run_defence_results', 'defence-results-image')">Run Defence Results Visualisation</button>
+        <button class="btn btn-outline-dark" onclick="runAnalysis('/run_model_results', 'model-results-image')">Generate Model Evaluation Table</button>
+      </div>
+    </div>
+
+    <!-- Images -->
+    <div class="mt-4">
+      <h4>Concept Drift Analysis</h4>
+      <img id="concept-drift-image" class="result-img" src="" alt="Concept Drift" style="display: none;">
+      <a id="concept-drift-download" class="btn btn-sm btn-link" href="#" download style="display:none;">Download Image</a>
+    </div>
+
+    <div class="mt-4">
+      <h4>Defence Results</h4>
+      <img id="defence-results-image" class="result-img" src="" alt="Defence Results" style="display: none;">
+      <a id="defence-results-download" class="btn btn-sm btn-link" href="#" download style="display:none;">Download Image</a>
+    </div>
+
+    <div class="mt-4 mb-5">
+      <h4>Model Evaluation Table</h4>
+      <img id="model-results-image" class="result-img" src="" alt="Model Results" style="display: none;">
+      <a id="model-results-download" class="btn btn-sm btn-link" href="#" download style="display:none;">Download Image</a>
     </div>
   </div>
 
-  <!-- Script -->
+  <!-- Scripts -->
   <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      const form = document.getElementById("upload-form");
-      const fileInput = document.getElementById("file-upload");
-      const processingIndicator = document.getElementById("processing");
-      const resultsContainer = document.getElementById("results-container");
-
-      form.addEventListener("submit", function (e) {
-        e.preventDefault();
-
-        const file = fileInput.files[0];
-        if (!file) {
-          alert("Please select a CSV file to upload");
-          return;
-        }
-        if (!file.name.endsWith(".csv")) {
-          alert("Please upload a valid CSV file");
-          return;
-        }
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        processingIndicator.style.display = "block";
-        resultsContainer.style.display = "none";
-
-        fetch("/upload", {
-          method: "POST",
-          body: formData,
-        })
-          .then((response) => response.json())
-          .then((data) => {
-            if (data.error) {
-              alert("Error: " + data.error);
-              processingIndicator.style.display = "none";
-              return;
-            }
-            updateResults(data);
-            processingIndicator.style.display = "none";
-            resultsContainer.style.display = "block";
-          })
-          .catch((error) => {
-            console.error("Error:", error);
-            alert("An error occurred during processing");
-            processingIndicator.style.display = "none";
-          });
-      });
-
-      function updateResults(data) {
-        const modelSelector = document.getElementById("model-selector");
-        const models = Object.keys(data);
-        modelSelector.innerHTML = models.map(model => `<option value="${model}">${model}</option>`).join("");
-        modelSelector.value = models[0];
-
-        modelSelector.addEventListener("change", () => displayMetrics(modelSelector.value));
-        displayMetrics(modelSelector.value);
-
-        function displayMetrics(modelKey) {
-          const modelData = data[modelKey];
-
-          document.getElementById("accuracy-value").textContent = (modelData.accuracy * 100).toFixed(2) + "%";
-          document.getElementById("f1-score-value").textContent = modelData.f1_score.toFixed(2);
-          document.getElementById("precision-value").textContent = modelData.precision.toFixed(2);
-          document.getElementById("recall-value").textContent = modelData.recall.toFixed(2);
-          document.getElementById("training-time-value").textContent = modelData.training_time + "s";
-
-          const modelDetails = document.getElementById("model-details");
-          modelDetails.innerHTML = `
-            <div class="card mt-3">
-              <div class="card-header">Model Details</div>
-              <div class="card-body">
-                <p><strong>Type:</strong> ${modelData.model_details.type}</p>
-                <p><strong>Features:</strong> ${modelData.model_details.features}</p>
-              </div>
-            </div>
-          `;
-
-          const shapSection = document.getElementById("shap-values");
-          const shapValues = modelData.shap_values || {};
-          shapSection.innerHTML = `
-            <div class="card mt-3">
-              <div class="card-header">Top SHAP Features</div>
-              <div class="card-body">
-                <ul>
-					${Object.entries(shapValues)
-						.sort((a, b) => b[1] - a[1])  // Sort by value descending
-						.map(([feature, val]) => `<li>${feature}: ${val.toFixed(4)}</li>`)
-					.join('')}
-				</ul>
-              </div>
-            </div>
-          `;
-        }
+    document.getElementById("upload-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const file = document.getElementById("file-upload").files[0];
+      if (!file || !file.name.endsWith(".csv")) {
+        alert("Please select a valid CSV file.");
+        return;
       }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      document.getElementById("processing").style.display = "block";
+      document.getElementById("results-container").style.display = "none";
+
+      fetch("/upload", { method: "POST", body: formData })
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) throw new Error(data.error);
+          updateResults(data);
+          document.getElementById("processing").style.display = "none";
+          document.getElementById("results-container").style.display = "block";
+        })
+        .catch(err => {
+          console.error(err);
+          alert("Error: " + err.message);
+          document.getElementById("processing").style.display = "none";
+        });
     });
+
+    function updateResults(data) {
+      const selector = document.getElementById("model-selector");
+      const models = Object.keys(data);
+      selector.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join("");
+      selector.onchange = () => displayMetrics(selector.value);
+      displayMetrics(models[0]);
+
+      function displayMetrics(model) {
+        const d = data[model];
+        document.getElementById("accuracy-value").textContent = (d.accuracy * 100).toFixed(2) + "%";
+        document.getElementById("f1-score-value").textContent = d.f1_score.toFixed(2);
+        document.getElementById("precision-value").textContent = d.precision.toFixed(2);
+        document.getElementById("recall-value").textContent = d.recall.toFixed(2);
+        document.getElementById("training-time-value").textContent = d.training_time + "s";
+
+        document.getElementById("model-details").innerHTML = `
+          <div class="card mt-3">
+            <div class="card-header">Model Details</div>
+            <div class="card-body">
+              <p><strong>Type:</strong> ${d.model_details.type}</p>
+              <p><strong>Features:</strong> ${d.model_details.features}</p>
+            </div>
+          </div>
+        `;
+
+        const shap = d.shap_values || {};
+        const shapHtml = Object.entries(shap)
+          .sort((a, b) => b[1] - a[1])
+          .map(([k, v]) => `<li>${k}: ${v.toFixed(4)}</li>`).join("");
+
+        document.getElementById("shap-values").innerHTML = `
+          <div class="card mt-3">
+            <div class="card-header">Top SHAP Features</div>
+            <div class="card-body"><ul>${shapHtml}</ul></div>
+          </div>
+        `;
+      }
+    }
+
+    function runAnalysis(endpoint, imageId) {
+      fetch(endpoint)
+        .then(res => res.json())
+        .then(data => {
+          if (data.image_path) {
+            const img = document.getElementById(imageId);
+            img.src = data.image_path + '?t=' + new Date().getTime(); // bust cache
+            img.style.display = "block";
+
+            const downloadLink = document.getElementById(imageId.replace("image", "download"));
+            downloadLink.href = img.src;
+            downloadLink.style.display = "inline";
+          } else {
+            alert("No image returned.");
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          alert("Error running analysis.");
+        });
+    }
   </script>
 </body>
 </html>
