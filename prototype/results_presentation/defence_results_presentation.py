@@ -812,11 +812,3 @@ def create_model_comparison_report(csv_file="defence_results.csv", output_file="
     
     print(f"Model comparison report saved to {output_file}")
     return fig
-
-#run code
-if __name__ == "__main__":
-    visualise_defence_results()
-    visualise_results_graph_simple()
-    create_advanced_performance_comparison()
-    create_defence_impact_analysis()
-    create_model_comparison_report()
