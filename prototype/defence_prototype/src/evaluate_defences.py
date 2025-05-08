@@ -42,7 +42,7 @@ def evaluate(X, y_true_encoded, model_type, defence_name, data_type, label_encod
 
 def run_evaluation(
     data_files,
-    model_types=['rf', 'nn', 'ensemble'],
+    model_types=['rf', 'nn', 'nn_adv', 'ensemble'],
     defences=['feature_smoothing'],
     results_dir=RESULTS_DIR,
     model_dir=os.path.join(DEFENCE_PROTOTYPE_DIR, 'models')
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     DATA_DIR = os.path.join(PROTOTYPE_DIR, 'data')
     data_files = {
         'clean': os.path.join(DATA_DIR, 'test_label.csv'),
-        # 'fgsm': os.path.join(DATA_DIR, 'adversarial_fgsm.csv'),
-        # 'pgd': os.path.join(DATA_DIR, 'adversarial_pgd.csv'),
+        'fgsm': os.path.join(DATA_DIR, 'adversarial_fgsm_label.csv'),
+        'pgd': os.path.join(DATA_DIR, 'adversarial_pgd_label.csv'),
     }
     run_evaluation(data_files)

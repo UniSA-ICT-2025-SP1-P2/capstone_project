@@ -42,7 +42,20 @@ def predict(X, model_type='ensemble'):
     elif model_type == 'nn':
         X_tensor = torch.tensor(X, dtype=torch.float32)
         with torch.no_grad():
+
+
+            ''
             outputs = nn_model(X_tensor)
+            return torch.argmax(outputs, dim=1).numpy()
+
+    elif model_type == 'nn_adv':
+        # Load adversarially trained model
+        adv_model = SimpleNN(input_dim=rf.n_features_in_, output_dim=len(rf.classes_))
+        adv_model.load_state_dict(torch.load(os.path.join(MODEL_DIR, 'neural_net_adv.pt')))
+        adv_model.eval()
+        X_tensor = torch.tensor(X, dtype=torch.float32)
+        with torch.no_grad():
+            outputs = adv_model(X_tensor)
             return torch.argmax(outputs, dim=1).numpy()
 
     elif model_type == 'ensemble':
@@ -54,4 +67,5 @@ def predict(X, model_type='ensemble'):
         return np.argmax(avg_probs, axis=1)
 
     else:
-        raise ValueError("model_type must be 'rf', 'nn', or 'ensemble'")
+        raise ValueError("model_type must be 'rf', 'nn', 'nn_adv', or 'ensemble'")
+
