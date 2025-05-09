@@ -1,4 +1,3 @@
-
 from flask import Flask, request, jsonify, render_template
 import os
 import pandas as pd
@@ -13,6 +12,7 @@ from prototype.results_presentation.model_results import load_csv_data, create_m
 from prototype.defence_prototype.src.defences import adversarial_training, feature_smoothing, ensemble_learning
 from prototype.defence_prototype.src.evaluate_defences import run_evaluation
 from prototype.attack_simulation.attack_sim import fgsm_attack_simulation, pgd_attack_simulation
+from prototype.defence_prototype.src.train_models import train_models
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -42,26 +42,75 @@ def upload_file():
         df = pd.read_csv(filepath)
         print(f"[INFO] Loaded dataset with shape {df.shape}")
         results = run_all_models(df)
-        print(f"[INFO] Model training completed. Results: {results}")
-        return jsonify(results)
+
+        transformed = {
+            "status": results.get("status"),
+            "message": results.get("message"),
+            "adversarial_features": results.get("adversarial_features", []),
+            "results": {}
+        }
+
+        for model_name, data in results.get("results", {}).items():
+            report = data.get("report", {})
+            model_path = data.get("model_path")
+            shap_image = data.get("shap_image")
+
+            # Determine number of input features
+            feature_count = len(results.get('adversarial_features', []))  # fallback
+            try:
+                from joblib import load
+                model = load(model_path)
+                if hasattr(model, 'named_steps'):
+                    feature_count = model.named_steps['clf'].n_features_in_
+                elif hasattr(model, 'n_features_in_'):
+                    feature_count = model.n_features_in_
+            except Exception as e:
+                print(f"[WARN] Could not determine feature count for {model_name}: {e}")
+
+            model_result = {
+                "accuracy": report.get("accuracy"),
+                "f1_score": report.get("macro avg", {}).get("f1-score"),
+                "precision": report.get("macro avg", {}).get("precision"),
+                "recall": report.get("macro avg", {}).get("recall"),
+                "model_details": {
+                    "type": model_name,
+                    "features": f"{feature_count} features used"
+                },
+                "shap_values": {},  # optional
+                "shap_image": shap_image
+            }
+
+            transformed["results"][model_name] = model_result
+
+        print(f"[INFO] Transformed result ready.")
+        return jsonify(transformed)
+
     except Exception as e:
         print("[ERROR] Exception occurred during processing:")
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
+
 @app.route('/train_models', methods=['POST'])
-def train_models():
+def trigger_training():
     try:
-        df = pd.read_csv(os.path.join(app.config['UPLOAD_FOLDER'], os.listdir(app.config['UPLOAD_FOLDER'])[0]))
-        results = run_all_models(df)
-        return jsonify(results)
+        # Define paths
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        DEFENCE_PROTOTYPE_DIR = os.path.abspath(os.path.join(BASE_DIR, 'prototype', 'defence_prototype'))
+        PROTOTYPE_DIR = os.path.abspath(os.path.join(DEFENCE_PROTOTYPE_DIR, '..'))
+        DATA_PATH = os.path.join(PROTOTYPE_DIR, 'data', 'train_label.csv')
+        MODEL_DIR = os.path.join(DEFENCE_PROTOTYPE_DIR, 'models')
+
+        # Call the training function
+        train_models(DATA_PATH, MODEL_DIR)
+
+        return jsonify({'message': 'Model training initiated successfully.'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 @app.route('/generate_adversarial', methods=['POST'])
 def generate_adversarial():
     try:
-        from prototype.attack_simulation.attack_sim import fgsm_attack_simulation, pgd_attack_simulation
         attack_type = request.form.get('attack_type')
         epsilon = float(request.form.get('epsilon', 0.1))
 
