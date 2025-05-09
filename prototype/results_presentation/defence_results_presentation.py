@@ -501,6 +501,10 @@ def create_defence_impact_analysis(csv_file="defence_results.csv", output_file="
     # Read the CSV file
     df = pd.read_csv(csv_file)
 
+    #Filter dataframe to only show clean results
+    data_to_remove = ['fgsm', 'fgsm_smoothed', 'pgd', 'pgd_smoothed']
+    df = df[~df['data_type'].isin(data_to_remove)]
+
     # Calculate the impact of defence as percentage change
     impact_data = []
     
@@ -622,7 +626,7 @@ def create_model_comparison_report(csv_file="defence_results.csv", output_file="
     output_file (str): Path to save the visualization
     """
 
-    # Read the CSV file
+    # load the CSV file
     df = pd.read_csv(csv_file)
 
     #Filter dataframe to only show fgsm results
