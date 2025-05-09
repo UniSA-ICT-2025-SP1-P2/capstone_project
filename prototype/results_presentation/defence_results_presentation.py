@@ -45,6 +45,10 @@ def visualise_defence_results(csv_file="defence_results.csv", output_file="resul
     """
     try:
         df = pd.read_csv(csv_file)
+
+        #Filter dataframe to only show fgsm results
+        data_to_remove = ['fgsm', 'fgsm_smoothed', 'pgd', 'pgd_smoothed']
+        df = df[~df['data_type'].isin(data_to_remove)]
         
         # Format numeric columns to 4 decimal places
         for col in ['accuracy', 'f1_score']:
@@ -126,6 +130,10 @@ def visualise_results_graph_simple(csv_file="defence_results.csv", metric="both"
     try:
         # Read the CSV file
         df = pd.read_csv(csv_file)
+
+        #Filter dataframe to only show fgsm results
+        data_to_remove = ['fgsm', 'fgsm_smoothed', 'pgd', 'pgd_smoothed']
+        df = df[~df['data_type'].isin(data_to_remove)]
         
         # Create a figure and axes
         if metric == "both":
@@ -184,6 +192,10 @@ def create_advanced_performance_comparison(csv_file="defence_results.csv", outpu
     
     # Read the CSV file
     df = pd.read_csv(csv_file)
+
+    #Filter dataframe to only show fgsm results
+    data_to_remove = ['fgsm', 'fgsm_smoothed', 'pgd', 'pgd_smoothed']
+    df = df[~df['data_type'].isin(data_to_remove)]
     
     # Create colorblind-friendly palette
     # Using a colorblind-friendly palette from ColorBrewer
@@ -612,6 +624,10 @@ def create_model_comparison_report(csv_file="defence_results.csv", output_file="
 
     # Read the CSV file
     df = pd.read_csv(csv_file)
+
+    #Filter dataframe to only show fgsm results
+    data_to_remove = ['fgsm', 'fgsm_smoothed', 'pgd', 'pgd_smoothed']
+    df = df[~df['data_type'].isin(data_to_remove)]
 
     # Aggregate metrics by model
     model_metrics = df.groupby('model').agg({
