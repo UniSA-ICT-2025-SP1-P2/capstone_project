@@ -3,6 +3,7 @@ import os
 import pandas as pd
 from werkzeug.utils import secure_filename
 import traceback
+import joblib
 
 # Custom modules (update paths if necessary)
 from prototype.baseline_models.baseline_models_webUI import run_all_models
@@ -43,6 +44,14 @@ def upload_file():
         print(f"[INFO] Loaded dataset with shape {df.shape}")
         results = run_all_models(df)
 
+        # Load SHAP values from Excel
+        try:
+            shap_path = os.path.join("prototype", "baseline_models", "baseline_data", "Classifier_Results.xlsx")
+            shap_df = pd.read_excel(shap_path, sheet_name="SHAP_Features")
+        except Exception as e:
+            print(f"[WARN] Could not load SHAP features: {e}")
+            shap_df = pd.DataFrame()
+
         transformed = {
             "status": results.get("status"),
             "message": results.get("message"),
@@ -55,17 +64,21 @@ def upload_file():
             model_path = data.get("model_path")
             shap_image = data.get("shap_image")
 
-            # Determine number of input features
-            feature_count = len(results.get('adversarial_features', []))  # fallback
+            feature_count = len(results.get('adversarial_features', []))
             try:
-                from joblib import load
-                model = load(model_path)
+                model = joblib.load(model_path)
                 if hasattr(model, 'named_steps'):
                     feature_count = model.named_steps['clf'].n_features_in_
                 elif hasattr(model, 'n_features_in_'):
                     feature_count = model.n_features_in_
             except Exception as e:
                 print(f"[WARN] Could not determine feature count for {model_name}: {e}")
+
+            shap_values = {}
+            if not shap_df.empty:
+                model_shap = shap_df[shap_df["Classifier"] == model_name]
+                top_features = model_shap.nlargest(10, "SHAP Importance")
+                shap_values = dict(zip(top_features["Feature"], top_features["SHAP Importance"]))
 
             model_result = {
                 "accuracy": report.get("accuracy"),
@@ -76,8 +89,8 @@ def upload_file():
                     "type": model_name,
                     "features": f"{feature_count} features used"
                 },
-                "shap_values": {},  # optional
-                "shap_image": shap_image
+                "shap_image": shap_image if shap_image and os.path.exists(shap_image) else None,
+                "shap_values": shap_values
             }
 
             transformed["results"][model_name] = model_result
@@ -90,20 +103,15 @@ def upload_file():
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/train_models', methods=['POST'])
 def trigger_training():
     try:
-        # Define paths
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
         DEFENCE_PROTOTYPE_DIR = os.path.abspath(os.path.join(BASE_DIR, 'prototype', 'defence_prototype'))
         PROTOTYPE_DIR = os.path.abspath(os.path.join(DEFENCE_PROTOTYPE_DIR, '..'))
         DATA_PATH = os.path.join(PROTOTYPE_DIR, 'data', 'train_label.csv')
         MODEL_DIR = os.path.join(DEFENCE_PROTOTYPE_DIR, 'models')
-
-        # Call the training function
         train_models(DATA_PATH, MODEL_DIR)
-
         return jsonify({'message': 'Model training initiated successfully.'}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -114,7 +122,6 @@ def generate_adversarial():
         attack_type = request.form.get('attack_type')
         epsilon = float(request.form.get('epsilon', 0.1))
 
-        # Assuming your data and model loading is handled elsewhere or inside the simulation functions
         if attack_type == 'fgsm':
             fgsm_attack_simulation(epsilon=epsilon)
         elif attack_type == 'pgd':
