@@ -19,7 +19,8 @@
     }
     
     body {
-      background-color: #f0f2f5;
+      background-color: #000000;
+	  color: #ffffff;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
     
@@ -424,7 +425,86 @@
       </div>
     </div>
 
-    <!-- Analysis Triggers -->
+    
+    <!-- Train Models -->
+    <div class="card section-card">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Train Models</h5>
+      </div>
+      <div class="card-body">
+        <form action="/train_models" method="post">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-play-circle me-2"></i>Train Baseline Models
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Generate Adversarial Samples -->
+    <div class="card section-card">
+      <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="fas fa-bug me-2"></i>Generate Adversarial Samples</h5>
+      </div>
+      <div class="card-body">
+        <form action="/generate_adversarial" method="post">
+          <div class="mb-3">
+            <label for="attack-type" class="form-label">Attack Type:</label>
+            <select class="form-select" name="attack_type" id="attack-type">
+              <option value="fgsm">FGSM</option>
+              <option value="pgd">PGD</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="epsilon" class="form-label">Epsilon (0.0 - 0.2):</label>
+            <input type="number" name="epsilon" id="epsilon" class="form-control" min="0" max="0.2" step="0.01" value="0.1" />
+          </div>
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-radiation-alt me-2"></i>Generate Samples
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Apply Defences -->
+    <div class="card section-card">
+      <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0"><i class="fas fa-shield-virus me-2"></i>Apply Defence Mechanisms</h5>
+      </div>
+      <div class="card-body">
+        <form action="/apply_defences" method="post">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="defences" value="feature_smoothing" id="def1" />
+            <label class="form-check-label" for="def1">Feature Smoothing</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="defences" value="adversarial_training" id="def2" />
+            <label class="form-check-label" for="def2">Adversarial Training</label>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="defences" value="concept_drift" id="def3" />
+            <label class="form-check-label" for="def3">Concept Drift Detection</label>
+          </div>
+          <button type="submit" class="btn btn-warning mt-3">
+            <i class="fas fa-tools me-2"></i>Apply Selected Defences
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Evaluate Models -->
+    <div class="card section-card">
+      <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="fas fa-check-double me-2"></i>Evaluate Models</h5>
+      </div>
+      <div class="card-body">
+        <form action="/evaluate_models" method="post">
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-poll me-2"></i>Run Evaluation
+          </button>
+        </form>
+      </div>
+    </div>
+<!-- Analysis Triggers -->
     <div class="card section-card">
       <div class="card-header bg-info text-white">
         <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Further Analysis</h5>
@@ -529,30 +609,15 @@
       // Simulate delay for demonstration purposes
       setTimeout(() => {
         fetch("/upload", { method: "POST", body: formData })
-          .then(res => {
-            // Check if response is OK
-            if (!res.ok) {
-              throw new Error(`Server responded with status: ${res.status}`);
-            }
-            return res.json();
-          })
+          .then(res => res.json())
           .then(data => {
-            if (!data) {
-              throw new Error("No data received from server");
-            }
             if (data.error) throw new Error(data.error);
-            
-            // Validate data structure before processing
-            if (typeof data !== 'object' || Object.keys(data).length === 0) {
-              throw new Error("Invalid data format received");
-            }
-            
             updateResults(data);
             document.getElementById("processing").style.display = "none";
             document.getElementById("results-container").style.display = "block";
           })
           .catch(err => {
-            console.error("Error processing data:", err);
+            console.error(err);
             alert("Error: " + err.message);
             document.getElementById("processing").style.display = "none";
           });
@@ -568,67 +633,37 @@
 
       function displayMetrics(model) {
         const d = data[model];
-        
-        // Check if data values exist before using toFixed
-        const accuracy = d && d.accuracy ? (d.accuracy * 100).toFixed(2) + "%" : "-";
-        const f1Score = d && d.f1_score ? d.f1_score.toFixed(2) : "-";
-        const precision = d && d.precision ? d.precision.toFixed(2) : "-";
-        const recall = d && d.recall ? d.recall.toFixed(2) : "-";
-        const trainingTime = d && d.training_time ? d.training_time + "s" : "-";
-        
-        // Safely update UI elements
-        document.getElementById("accuracy-value").textContent = accuracy;
-        document.getElementById("f1-score-value").textContent = f1Score;
-        document.getElementById("precision-value").textContent = precision;
-        document.getElementById("recall-value").textContent = recall;
-        document.getElementById("training-time-value").textContent = trainingTime;
+        document.getElementById("accuracy-value").textContent = (d.accuracy * 100).toFixed(2) + "%";
+        document.getElementById("f1-score-value").textContent = d.f1_score.toFixed(2);
+        document.getElementById("precision-value").textContent = d.precision.toFixed(2);
+        document.getElementById("recall-value").textContent = d.recall.toFixed(2);
+        document.getElementById("training-time-value").textContent = d.training_time + "s";
 
-        // Safely handle model details
-        let modelDetailsHtml = `
+        document.getElementById("model-details").innerHTML = `
           <div class="card mt-3 model-details-card">
             <div class="card-header bg-light">
               <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Model Details</h5>
             </div>
-            <div class="card-body">`;
-            
-        if (d && d.model_details) {
-          const type = d.model_details.type || "Not specified";
-          const features = d.model_details.features || "Not specified";
-          
-          modelDetailsHtml += `
+            <div class="card-body">
               <div class="mb-2">
-                <strong><i class="fas fa-code-branch me-2"></i>Type:</strong> ${type}
+                <strong><i class="fas fa-code-branch me-2"></i>Type:</strong> ${d.model_details.type}
               </div>
               <div>
-                <strong><i class="fas fa-list me-2"></i>Features:</strong> ${features}
-              </div>`;
-        } else {
-          modelDetailsHtml += `<p>No model details available</p>`;
-        }
-        
-        modelDetailsHtml += `
+                <strong><i class="fas fa-list me-2"></i>Features:</strong> ${d.model_details.features}
+              </div>
             </div>
           </div>
         `;
-        
-        document.getElementById("model-details").innerHTML = modelDetailsHtml;
 
-        // Safely handle SHAP values
-        const shap = (d && d.shap_values) || {};
-        let shapHtml = '';
-        
-        if (Object.keys(shap).length > 0) {
-          shapHtml = Object.entries(shap)
-            .sort((a, b) => b[1] - a[1])
-            .map(([k, v]) => `
-              <div class="feature-item">
-                <span class="feature-name">${k}</span>
-                <span class="feature-value">${v.toFixed(4)}</span>
-              </div>
-            `).join("");
-        } else {
-          shapHtml = "<p>No SHAP values available</p>";
-        }
+        const shap = d.shap_values || {};
+        const shapHtml = Object.entries(shap)
+          .sort((a, b) => b[1] - a[1])
+          .map(([k, v]) => `
+            <div class="feature-item">
+              <span class="feature-name">${k}</span>
+              <span class="feature-value">${v.toFixed(4)}</span>
+            </div>
+          `).join("");
 
         document.getElementById("shap-values").innerHTML = `
           <div class="card mt-3 shap-values-card">
@@ -719,16 +754,9 @@
       };
       
       // For testing only - uncomment to see UI with mock data
-      updateResults(mockData);
-      document.getElementById("results-container").style.display = "block";
+      // updateResults(mockData);
+      // document.getElementById("results-container").style.display = "block";
     }
-    
-    // Load mock data automatically for testing
-    // Comment this out when connecting to real backend
-    document.addEventListener("DOMContentLoaded", function() {
-      // Uncomment the next line to automatically load mock data for testing
-      // setTimeout(loadMockData, 1000);
-    });
   </script>
 </body>
 </html>
