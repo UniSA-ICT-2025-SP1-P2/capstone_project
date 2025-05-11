@@ -368,6 +368,32 @@
                         <i class="fas fa-file-alt me-2"></i><span id="file-name">No file selected</span>
                     </div>
                 </div>
+                <div class="mb-3">
+                    <label class="form-label"><i class="fas fa-robot me-2"></i>Select Models to Train:</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="models" value="RandomForest" id="rf"
+                               checked>
+                        <label class="form-check-label" for="rf">Random Forest</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="models" value="KNN" id="knn" checked>
+                        <label class="form-check-label" for="knn">K-Nearest Neighbors (KNN)</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="models" value="LogisticRegression" id="lr"
+                               checked>
+                        <label class="form-check-label" for="lr">Logistic Regression</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="models" value="DecisionTree" id="dt"
+                               checked>
+                        <label class="form-check-label" for="dt">Decision Tree</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="models" value="SVM" id="svm" checked>
+                        <label class="form-check-label" for="svm">Support Vector Machine (SVM)</label>
+                    </div>
+                </div>
                 <button type="submit" class="btn btn-primary px-4">
                     <i class="fas fa-microscope me-2"></i>Analyse Dataset
                 </button>
@@ -612,25 +638,27 @@
         const formData = new FormData();
         formData.append("file", file);
 
+        // ✅ Append selected models
+        document.querySelectorAll("input[name='models']:checked").forEach(cb => {
+            formData.append("models", cb.value);
+        });
+
         document.getElementById("processing").style.display = "block";
         document.getElementById("results-container").style.display = "none";
 
-        // Simulate delay for demonstration purposes
-        setTimeout(() => {
-            fetch("/upload", {method: "POST", body: formData})
-                .then(res => res.json())
-                .then(data => {
-                    if (data.error) throw new Error(data.error);
-                    updateResults(data);
-                    document.getElementById("processing").style.display = "none";
-                    document.getElementById("results-container").style.display = "block";
-                })
-                .catch(err => {
-                    console.error(err);
-                    alert("Error: " + err.message);
-                    document.getElementById("processing").style.display = "none";
-                });
-        }, 1000);
+        fetch("/upload", {method: "POST", body: formData})
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                updateResults(data);
+                document.getElementById("processing").style.display = "none";
+                document.getElementById("results-container").style.display = "block";
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Error: " + err.message);
+                document.getElementById("processing").style.display = "none";
+            });
     });
 
     function updateResults(data) {
@@ -780,7 +808,7 @@
                 }
             };
         }
-        }
+    }
 </script>
 </body>
 </html>
