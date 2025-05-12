@@ -5,6 +5,7 @@ import unittest
 import os
 import pandas as pd
 import json
+from io import BytesIO
 from selenium.webdriver.support.ui import WebDriverWait, Select
 from flask import Flask
 from flask_testing import TestCase
@@ -102,3 +103,32 @@ def test_model_selection(self):
             EC.visibility_of_element_located((By.ID, "model-parameters"))
             )
         self.assertTrue(parameters_form.is_displayed())
+
+
+def test_null_byte_injection(self):
+        """Test protection against null byte injection attacks"""
+        # Create a CSV file with legitimate content
+        csv_content = "name,age\nJohn,30\nJane,25"
+        
+        # Create a file with null bytes in the filename
+        malicious_filename = "legitimate\x00malicious.csv"
+        
+        # Create a file object with the CSV content
+        data = {
+            'file': (BytesIO(csv_content.encode('utf-8')), malicious_filename)
+        }
+        
+        # Make a POST request to upload endpoint
+        response = self.client.post(
+            '/upload',
+            data=data,
+            content_type='multipart/form-data'
+        )
+        
+        # Check that the response is not successful (should be rejected)
+        self.assertNotEqual(response.status_code, 200)
+        
+        # Alternative approach: Check that the file was not saved
+        uploaded_files = os.listdir(self.app.config['UPLOAD_FOLDER'])
+        for filename in uploaded_files:
+            self.assertNotIn('\x00', filename)
