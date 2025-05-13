@@ -173,6 +173,8 @@ def run_all_models(df, selected_models=None, progress_callback=None):
     validation_df.to_csv(os.path.join(BASELINE_DATA_DIR, "Validation_Dataset.csv"), index=False)
     test_df.to_csv(os.path.join(BASELINE_DATA_DIR, "Test_Dataset.csv"), index=False)
     pd.DataFrame(ADVERSARIAL_FEATURES, columns=["Feature"]).to_csv(os.path.join(BASELINE_DATA_DIR, "Adversarial_Features.csv"), index=False)
+    joblib.dump(le_catname, os.path.join(MODEL_DIR, "label_encoder.pkl"))
+    joblib.dump(X_train.columns.tolist(), os.path.join(MODEL_DIR, "feature_names.pkl"))
 
     update_progress("All models trained and saved.")
     return {
