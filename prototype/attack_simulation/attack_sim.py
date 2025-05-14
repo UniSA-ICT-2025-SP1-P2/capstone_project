@@ -388,13 +388,21 @@ def generate_adversarial_samples_for_retraining(model, X, y, epsilon, n_samples=
         train_df = pd.read_csv(os.path.join(DATA_DIR, "Train_Dataset.csv"))
         if 'Category' in train_df.columns:
             categories = [train_df.loc[idx, 'Category'] if idx in train_df.index else "Unknown" for idx in selected_indices]
-            X_adv_df['Category'] = categories
+            X_adv_df.insert(0, 'Category', categories)  # Changed to insert 'Category' as first column
     except Exception as e:
         print(f"Error adding Category information: {e}")
     
+    # Save to original location
     filename = os.path.join(OUTPUT_DIR, f"adversarial_retrain_eps_{epsilon}.csv")
     X_adv_df.to_csv(filename, index=False)
     print(f"Saved retraining samples to {filename}")
+    
+    # Save to additional 'data' folder with new name
+    data_output_dir = os.path.join(BASE_DIR, "data")
+    os.makedirs(data_output_dir, exist_ok=True)
+    data_filename = os.path.join(data_output_dir, f"adversarial_fgsm.csv")
+    X_adv_df.to_csv(data_filename, index=False)
+    print(f"Saved retraining samples to {data_filename}")
     
     return X_adv_df
 
