@@ -1,0 +1,9 @@
+Classifier,Epsilon,Accuracy,Precision,Recall,F1-score
+LogisticRegression,0.05,0.12,1.0,0.12,0.21428571428571427
+DecisionTree,0.05,0.0,0.0,0.0,0.0
+LogisticRegression,0.1,0.11,1.0,0.11,0.1981981981981982
+DecisionTree,0.1,0.0,0.0,0.0,0.0
+LogisticRegression,0.15,0.11,1.0,0.11,0.1981981981981982
+DecisionTree,0.15,0.0,0.0,0.0,0.0
+LogisticRegression,0.2,0.11,1.0,0.11,0.1981981981981982
+DecisionTree,0.2,0.0,0.0,0.0,0.0

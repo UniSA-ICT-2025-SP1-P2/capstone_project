@@ -1,0 +1,50 @@
+Classifier: LogisticRegression
+Accuracy: 0.13
+Classification Report:
+  180solutions: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Ako: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Benign: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  CWS: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Conti: {'precision': 1.0, 'recall': 0.13, 'f1-score': 0.23008849557522124, 'support': 100.0}
+  Emotet: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Gator: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Maze: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Pysa: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Reconyc: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Refroso: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Scar: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Shade: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  TIBS: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Transponder: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Zeus: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  micro avg: {'precision': 0.13, 'recall': 0.13, 'f1-score': 0.13, 'support': 100.0}
+  macro avg: {'precision': 0.0625, 'recall': 0.008125, 'f1-score': 0.014380530973451327, 'support': 100.0}
+  weighted avg: {'precision': 1.0, 'recall': 0.13, 'f1-score': 0.23008849557522124, 'support': 100.0}
+
+==================================================
+
+Classifier: DecisionTree
+Accuracy: 0.0
+Classification Report:
+  180solutions: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Ako: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Benign: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  CWS: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Conti: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 100.0}
+  Emotet: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Gator: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Maze: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Pysa: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Reconyc: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Refroso: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Scar: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Shade: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  TIBS: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Transponder: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  Zeus: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 0.0}
+  micro avg: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 100.0}
+  macro avg: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 100.0}
+  weighted avg: {'precision': 0.0, 'recall': 0.0, 'f1-score': 0.0, 'support': 100.0}
+
+==================================================
+
