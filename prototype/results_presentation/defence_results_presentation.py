@@ -34,17 +34,20 @@ def load_csv_data(filename="defence_results.csv"):
         return None
 
 #Table visualisation of defence results
-def visualise_defence_results(csv_file="defence_results.csv", output_file="results_table_simple.png"):
+def visualise_defence_results(output_file="results_table_simple.png"):
     """
     Alternative method to export table as PNG without requiring dataframe_image.
     Uses matplotlib to create and export the table.
     
     Parameters:
-    csv_file (str): Path to the CSV file
+    file_path (str): Path to the CSV file
     output_file (str): Path to save the table image
     """
+    #Load csv from GitHub file path
+    file_path = 'https://raw.githubusercontent.com/UniSA-ICT-2025-SP1-P2/capstone_project/refs/heads/master/prototype/defence_prototype/results/defence_results.csv'
+
     try:
-        df = pd.read_csv(csv_file)
+        df = pd.read_csv(file_path)
 
         #Filter dataframe to only show fgsm results
         data_to_remove = ['fgsm', 'fgsm_smoothed', 'pgd', 'pgd_smoothed']
@@ -116,20 +119,20 @@ def visualise_defence_results(csv_file="defence_results.csv", output_file="resul
         import traceback
         traceback.print_exc()
 
-def visualise_results_graph_simple(csv_file="defence_results.csv", metric="both"):
+def visualise_results_graph_simple(, metric="both"):
     """
     Visualise the results from the CSV file as a graph.
     
     Parameters:
-    csv_file (str): Path to the CSV file
-    metric (str): Which metric to plot - 'accuracy', 'f1_score', or 'both'
-    
-    Returns:
-    matplotlib.figure.Figure: The generated figure
+    file_path (str): Path to the CSV file
+    output_file (str): Path to save the table image
     """
+    #Load csv from GitHub file path
+    file_path = 'https://raw.githubusercontent.com/UniSA-ICT-2025-SP1-P2/capstone_project/refs/heads/master/prototype/defence_prototype/results/defence_results.csv'
+
     try:
         # Read the CSV file
-        df = pd.read_csv(csv_file)
+        df = pd.read_csv(file_path)
 
         #Filter dataframe to only show fgsm results
         data_to_remove = ['fgsm', 'fgsm_smoothed', 'pgd', 'pgd_smoothed']
@@ -181,17 +184,19 @@ def visualise_results_graph_simple(csv_file="defence_results.csv", metric="both"
         print(f"Error visualising results graph: {e}")
         return None
 
-def create_advanced_performance_comparison(csv_file="defence_results.csv", output_file="advanced_performance_comparison.png"):
+def create_advanced_performance_comparison(output_file="advanced_performance_comparison.png"):
     """
     Create a sophisticated comparison of model performance across metrics
     
     Parameters:
-    csv_file (str): Path to the CSV file containing performance data
-    output_file (str): Path to save the visualization
+    file_path (str): Path to the CSV file
+    output_file (str): Path to save the table image
     """
-    
+    #Load csv from GitHub file path
+    file_path = 'https://raw.githubusercontent.com/UniSA-ICT-2025-SP1-P2/capstone_project/refs/heads/master/prototype/defence_prototype/results/defence_results.csv'
+
     # Read the CSV file
-    df = pd.read_csv(csv_file)
+    df = pd.read_csv(file_path)
 
     #Filter dataframe to only show fgsm results
     data_to_remove = ['fgsm', 'fgsm_smoothed', 'pgd', 'pgd_smoothed']
@@ -489,17 +494,19 @@ def create_advanced_performance_comparison(csv_file="defence_results.csv", outpu
     print(f"Advanced performance comparison saved to {output_file}")
     return fig
 
-def create_defence_impact_analysis(csv_file="defence_results.csv", output_file="defence_impact_analysis.png"):
+def create_defence_impact_analysis(output_file="defence_impact_analysis.png"):
     """
     Create visualization showing the impact of defence mechanisms on performance
     
     Parameters:
-    df (pandas.DataFrame): Input data
-    output_file (str): Path to save the visualization
+    file_path (str): Path to the CSV file
+    output_file (str): Path to save the table image
     """
+    #Load csv from GitHub file path
+    file_path = 'https://raw.githubusercontent.com/UniSA-ICT-2025-SP1-P2/capstone_project/refs/heads/master/prototype/defence_prototype/results/defence_results.csv'
 
     # Read the CSV file
-    df = pd.read_csv(csv_file)
+    df = pd.read_csv(file_path)
 
     #Filter dataframe to only show clean results
     data_to_remove = ['fgsm', 'fgsm_smoothed', 'pgd', 'pgd_smoothed']
@@ -622,12 +629,14 @@ def create_model_comparison_report(csv_file="defence_results.csv", output_file="
     Create a comprehensive visual report comparing models
     
     Parameters:
-    df (pandas.DataFrame): Input data
-    output_file (str): Path to save the visualization
+    file_path (str): Path to the CSV file
+    output_file (str): Path to save the table image
     """
+    #Load csv from GitHub file path
+    file_path = 'https://raw.githubusercontent.com/UniSA-ICT-2025-SP1-P2/capstone_project/refs/heads/master/prototype/defence_prototype/results/defence_results.csv'
 
     # load the CSV file
-    df = pd.read_csv(csv_file)
+    df = pd.read_csv(file_path)
 
     #Filter dataframe to only show fgsm results
     data_to_remove = ['fgsm', 'fgsm_smoothed', 'pgd', 'pgd_smoothed']
