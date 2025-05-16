@@ -27,7 +27,7 @@ def fix_labels(df, original_path):
         df = df.rename(columns={'Category': 'label'})
 
     if 'label' not in df.columns:
-        raise ValueError("❌ No 'label' or 'Category' column found.")
+        raise ValueError("No 'label' or 'Category' column found.")
 
     # Extract second part of label string if it contains a dash
     def clean_label(val):
@@ -43,9 +43,9 @@ def fix_labels(df, original_path):
     # Check for missing labels after cleaning
     if df['label'].isnull().any():
         bad_rows = df[df['label'].isnull()]
-        print("❌ Invalid label format in the following rows:")
+        print("Invalid label format in the following rows:")
         print(bad_rows.head())
-        raise ValueError("⚠️ Some labels could not be split properly or are missing.")
+        raise ValueError("Some labels could not be split properly or are missing.")
 
     # Save cleaned version with _label.csv suffix
     directory = os.path.dirname(original_path)
@@ -108,7 +108,7 @@ def run_adversarial_training(data_dir, model_dir, epochs=10, lr=0.001):
         print(f"Epoch {epoch+1}/{epochs} - Loss: {loss.item():.4f}")
 
     torch.save(model.state_dict(), os.path.join(model_dir, 'neural_net_adv.pt'))
-    print("✅ Adversarially trained model saved as 'neural_net_adv.pt'")
+    print("Adversarially trained model saved as 'neural_net_adv.pt'")
     return True
 
 # CLI fallback
