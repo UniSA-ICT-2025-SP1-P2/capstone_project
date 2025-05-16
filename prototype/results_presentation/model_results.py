@@ -52,12 +52,12 @@ def create_model_results_table(model_results):
     df['training'] = [f"Training Run {i+1}" for i in range(len(df))]
     
     # Calculate average training time - safely handle different data structures
-    if len(df) == 1:
+    #if len(df) == 1:
         # If there's only one row
-        avg_training_time = df['training_time'].iloc[0]
-    else:
+     #   avg_training_time = df['training_time'].iloc[0]
+    #else:
         # If there are multiple rows
-        avg_training_time = pd.Series(df['training_time']).mean()
+    #    avg_training_time = pd.Series(df['training_time']).mean()
 
     # Select columns for visualization
     metrics_df = df[['training', 'precision', 'recall', 'f1-score', 'accuracy']]
@@ -130,12 +130,5 @@ def create_model_results_table(model_results):
     buf.seek(0)
     img = Image.open(buf)
     
-    plt.close(fig)
-    
     return img
-
-#run code
-if __name__ == "__main__":
-    model_results = load_csv_data()
-    create_model_results_table(model_results)
 

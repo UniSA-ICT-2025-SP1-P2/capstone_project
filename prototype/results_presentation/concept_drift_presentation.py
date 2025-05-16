@@ -35,47 +35,6 @@ def load_csv_data(filename="concept_drift_results.csv"):
         print(f"Error loading CSV data: {e}")
         return None
 
-# Main visualization function
-def visualize_concept_drift():
-
-    # Load data
-    df = load_csv_data()
-    
-    # Create figure with multiple plots
-    fig = plt.figure(figsize=(16, 16))
-    gs = gridspec.GridSpec(3, 2, height_ratios=[1, 1, 1], hspace=0.5, wspace=0.4)
-
-    # 1. Line Plot with Critical Points
-    ax1 = fig.add_subplot(gs[0, :])
-    create_line_plot_with_critical_points(df, ax1)
-    
-    # 2. Heatmap
-    ax2 = fig.add_subplot(gs[1, 0])
-    create_heatmap(df, ax2)
-    
-    # 3. Distribution Change Analysis
-    ax3 = fig.add_subplot(gs[1, 1])
-    create_distribution_analysis(df, ax3)
-    
-    # 4. Drift Magnitude Plot
-    ax4 = fig.add_subplot(gs[2, 0])
-    create_drift_magnitude_plot(df, ax4)
-    
-    # 5. Segmented Performance Analysis
-    ax5 = fig.add_subplot(gs[2, 1])
-    create_segmented_performance(df, ax5)
-    
-    # Add title
-    fig.suptitle("Comprehensive Analysis of Concept Drift in Model Performance", fontsize=18, fontweight='bold', y=0.98)
-    
-    # Adjust spacing and layout
-    fig.subplots_adjust(hspace=0.5, wspace=0.4, top=0.92)
-    fig.tight_layout(rect=[0, 0, 1, 0.95])  # Leave space for suptitle
-    
-    # Save and show
-    fig.savefig("concept_drift_analysis.png", dpi=300, bbox_inches='tight', pad_inches=0.5, facecolor='white')
-    plt.show()
-    print("Main visualization completed and saved to 'concept_drift_analysis.png'")
 
 # 1. Line Plot with Critical Points and Context
 def create_line_plot_with_critical_points(df,ax):
@@ -306,6 +265,47 @@ def create_segmented_performance(df, ax):
 
     return ax
 
-#run code
-if __name__ == "__main__":
-    visualize_concept_drift()
+
+# Main visualization function
+def visualize_concept_drift():
+
+    # Load data
+    df = load_csv_data()
+    
+    # Create figure with multiple plots
+    fig = plt.figure(figsize=(16, 16))
+    gs = gridspec.GridSpec(3, 2, height_ratios=[1, 1, 1], hspace=0.5, wspace=0.4)
+
+    # 1. Line Plot with Critical Points
+    ax1 = fig.add_subplot(gs[0, :])
+    create_line_plot_with_critical_points(df, ax1)
+    
+    # 2. Heatmap
+    ax2 = fig.add_subplot(gs[1, 0])
+    create_heatmap(df, ax2)
+    
+    # 3. Distribution Change Analysis
+    ax3 = fig.add_subplot(gs[1, 1])
+    create_distribution_analysis(df, ax3)
+    
+    # 4. Drift Magnitude Plot
+    ax4 = fig.add_subplot(gs[2, 0])
+    create_drift_magnitude_plot(df, ax4)
+    
+    # 5. Segmented Performance Analysis
+    ax5 = fig.add_subplot(gs[2, 1])
+    create_segmented_performance(df, ax5)
+    
+    # Add title
+    fig.suptitle("Comprehensive Analysis of Concept Drift in Model Performance", fontsize=18, fontweight='bold', y=0.98)
+    
+    # Adjust spacing and layout
+    fig.subplots_adjust(hspace=0.5, wspace=0.4, top=0.92)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])  # Leave space for subtitle
+
+    return fig
+    
+    # Save and show
+    #fig.savefig("concept_drift_analysis.png", dpi=300, bbox_inches='tight', pad_inches=0.5, facecolor='white')
+    #plt.show()
+    #print("Main visualization completed and saved to 'concept_drift_analysis.png'")

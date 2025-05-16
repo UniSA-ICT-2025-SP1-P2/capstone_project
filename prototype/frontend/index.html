@@ -1,734 +1,814 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Adversarial Malware Analysis Dashboard</title>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
-  <style>
-    :root {
-      --primary-color: #3a86ff;
-      --secondary-color: #8338ec;
-      --success-color: #38b000;
-      --warning-color: #ffbe0b;
-      --danger-color: #ff006e;
-      --dark-color: #1a1a2e;
-      --light-color: #f8f9fa;
-    }
-    
-    body {
-      background-color: #f0f2f5;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    
-    .container {
-      max-width: 1200px;
-    }
-    
-    .dashboard-header {
-      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-      color: white;
-      border-radius: 10px;
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-    }
-    
-    .dashboard-header h1 {
-      margin: 0;
-      font-weight: 600;
-    }
-    
-    .section-card {
-      margin-bottom: 25px;
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-      border: none;
-      transition: all 0.3s ease;
-    }
-    
-    .section-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    }
-    
-    .card-header {
-      padding: 1rem 1.5rem;
-      font-weight: 600;
-    }
-    
-    .card-header.bg-primary {
-      background: linear-gradient(135deg, var(--primary-color) 0%, #4a96ff 100%) !important;
-    }
-    
-    .card-header.bg-info {
-      background: linear-gradient(135deg, #0dcaf0 0%, #0d98f0 100%) !important;
-    }
-    
-    .btn-primary {
-      background-color: var(--primary-color);
-      border-color: var(--primary-color);
-    }
-    
-    .btn-primary:hover {
-      background-color: #2a76ef;
-      border-color: #2a76ef;
-    }
-    
-    .btn-outline-dark {
-      position: relative;
-      overflow: hidden;
-      z-index: 1;
-      transition: all 0.3s ease;
-    }
-    
-    .btn-outline-dark:before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0) 100%);
-      transition: all 0.4s ease;
-      z-index: -1;
-    }
-    
-    .btn-outline-dark:hover:before {
-      left: 0;
-    }
-    
-    .btn-outline-dark i {
-      margin-right: 8px;
-    }
-    
-    .results-container {
-      display: none;
-      background: white;
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-      margin-bottom: 25px;
-    }
-    
-    .spinner-wrapper {
-      display: none;
-      position: relative;
-      padding: 3rem 0;
-      background: rgba(255, 255, 255, 0.9);
-      border-radius: 10px;
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-      margin-bottom: 25px;
-    }
-    
-    .spinner-border {
-      width: 3.5rem;
-      height: 3.5rem;
-      color: var(--primary-color);
-    }
-    
-    .badge {
-      font-size: 0.9rem;
-      padding: 0.5rem 0.8rem;
-      font-weight: 500;
-    }
-    
-    .list-group-item {
-      padding: 0.75rem 1.25rem;
-      border-left: none;
-      border-right: none;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    
-    .list-group-item:first-child {
-      border-top-left-radius: 0.5rem;
-      border-top-right-radius: 0.5rem;
-    }
-    
-    .list-group-item:last-child {
-      border-bottom-left-radius: 0.5rem;
-      border-bottom-right-radius: 0.5rem;
-    }
-    
-    .metrics-label {
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-    }
-    
-    .metrics-label i {
-      margin-right: 10px;
-      color: var(--primary-color);
-    }
-    
-    img.result-img {
-      max-width: 100%;
-      border-radius: 8px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-      margin-top: 15px;
-      transition: all 0.3s ease;
-    }
-    
-    img.result-img:hover {
-      transform: scale(1.01);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    }
-    
-    .results-heading {
-      background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      text-fill-color: transparent;
-      font-weight: 600;
-    }
-    
-    .image-section {
-      background: white;
-      border-radius: 10px;
-      padding: 20px;
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
-      margin-bottom: 25px;
-      transition: all 0.3s ease;
-    }
-    
-    .image-section:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
-    }
-    
-    .image-section h4 {
-      display: flex;
-      align-items: center;
-      margin-bottom: 1rem;
-      color: var(--dark-color);
-    }
-    
-    .image-section h4 i {
-      margin-right: 10px;
-      color: var(--primary-color);
-    }
-    
-    .download-link {
-      display: none;
-      margin-top: 10px;
-      color: var(--primary-color);
-      text-decoration: none;
-      font-weight: 500;
-      transition: all 0.2s ease;
-    }
-    
-    .download-link:hover {
-      color: var(--secondary-color);
-    }
-    
-    .download-link i {
-      margin-right: 5px;
-    }
-    
-    .form-control:focus, .form-select:focus {
-      border-color: var(--primary-color);
-      box-shadow: 0 0 0 0.25rem rgba(58, 134, 255, 0.25);
-    }
-    
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(20px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .fade-in {
-      animation: fadeIn 0.5s ease forwards;
-    }
-    
-    /* Custom styles for model details */
-    .model-details-card {
-      border-left: 4px solid var(--primary-color);
-    }
-    
-    .shap-values-card {
-      border-left: 4px solid var(--secondary-color);
-    }
-    
-    .feature-item {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(0,0,0,0.05);
-    }
-    
-    .feature-item:last-child {
-      border-bottom: none;
-    }
-    
-    .feature-name {
-      font-weight: 500;
-    }
-    
-    .feature-value {
-      font-weight: 600;
-      color: var(--primary-color);
-    }
-    
-    .upload-icon {
-      font-size: 2rem;
-      color: var(--primary-color);
-      margin-bottom: 1rem;
-    }
-    
-    .file-input-wrapper {
-      position: relative;
-      overflow: hidden;
-      display: inline-block;
-    }
-    
-    .file-input-wrapper input[type=file] {
-      font-size: 100px;
-      position: absolute;
-      left: 0;
-      top: 0;
-      opacity: 0;
-      cursor: pointer;
-    }
-    
-    .custom-file-upload {
-      display: block;
-      padding: 2rem;
-      border: 2px dashed rgba(0,0,0,0.1);
-      border-radius: 10px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-    
-    .custom-file-upload:hover {
-      border-color: var(--primary-color);
-      background-color: rgba(58, 134, 255, 0.03);
-    }
-    
-    .selected-file {
-      display: none;
-      margin-top: 10px;
-      padding: 8px 15px;
-      background-color: rgba(58, 134, 255, 0.1);
-      border-radius: 5px;
-      font-size: 0.9rem;
-    }
-    
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-      .dashboard-header {
-        padding: 1rem;
-      }
-      
-      .section-card {
-        margin-bottom: 15px;
-      }
-      
-      .card-header {
-        padding: 0.75rem 1rem;
-      }
-    }
-  </style>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Adversarial Malware Analysis Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #3a86ff;
+            --secondary-color: #8338ec;
+            --success-color: #38b000;
+            --warning-color: #ffbe0b;
+            --danger-color: #ff006e;
+            --dark-color: #1a1a2e;
+            --light-color: #f8f9fa;
+        }
+
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .container {
+            max-width: 1200px;
+        }
+
+        .dashboard-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .dashboard-header h1 {
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .section-card {
+            margin-bottom: 25px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            border: none;
+            transition: all 0.3s ease;
+        }
+
+        .section-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-header {
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+        }
+
+        .card-header.bg-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #4a96ff 100%) !important;
+        }
+
+        .card-header.bg-info {
+            background: linear-gradient(135deg, #0dcaf0 0%, #0d98f0 100%) !important;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: #2a76ef;
+            border-color: #2a76ef;
+        }
+
+        .btn-outline-dark {
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline-dark:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(0, 0, 0, 0.05) 0%, rgba(0, 0, 0, 0) 100%);
+            transition: all 0.4s ease;
+            z-index: -1;
+        }
+
+        .btn-outline-dark:hover:before {
+            left: 0;
+        }
+
+        .btn-outline-dark i {
+            margin-right: 8px;
+        }
+
+        .results-container {
+            display: none;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            margin-bottom: 25px;
+        }
+
+        .spinner-wrapper {
+            display: none;
+            position: relative;
+            padding: 3rem 0;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            margin-bottom: 25px;
+        }
+
+        .spinner-border {
+            width: 3.5rem;
+            height: 3.5rem;
+            color: var(--primary-color);
+        }
+
+        .badge {
+            font-size: 0.9rem;
+            padding: 0.5rem 0.8rem;
+            font-weight: 500;
+        }
+
+        .list-group-item {
+            padding: 0.75rem 1.25rem;
+            border-left: none;
+            border-right: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .list-group-item:first-child {
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+        }
+
+        .list-group-item:last-child {
+            border-bottom-left-radius: 0.5rem;
+            border-bottom-right-radius: 0.5rem;
+        }
+
+        .metrics-label {
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+        }
+
+        .metrics-label i {
+            margin-right: 10px;
+            color: var(--primary-color);
+        }
+
+        img.result-img {
+            max-width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-top: 15px;
+            transition: all 0.3s ease;
+        }
+
+        img.result-img:hover {
+            transform: scale(1.01);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .results-heading {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-fill-color: transparent;
+            font-weight: 600;
+        }
+
+        .image-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .image-section:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+
+        .image-section h4 {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            color: var(--dark-color);
+        }
+
+        .image-section h4 i {
+            margin-right: 10px;
+            color: var(--primary-color);
+        }
+
+        .download-link {
+            display: none;
+            margin-top: 10px;
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .download-link:hover {
+            color: var(--secondary-color);
+        }
+
+        .download-link i {
+            margin-right: 5px;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.25rem rgba(58, 134, 255, 0.25);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+
+        /* Custom styles for model details */
+        .model-details-card {
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .shap-values-card {
+            border-left: 4px solid var(--secondary-color);
+        }
+
+        .feature-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .feature-item:last-child {
+            border-bottom: none;
+        }
+
+        .feature-name {
+            font-weight: 500;
+        }
+
+        .feature-value {
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .upload-icon {
+            font-size: 2rem;
+            color: var(--primary-color);
+            margin-bottom: 1rem;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            font-size: 100px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .custom-file-upload {
+            display: block;
+            padding: 2rem;
+            border: 2px dashed rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .custom-file-upload:hover {
+            border-color: var(--primary-color);
+            background-color: rgba(58, 134, 255, 0.03);
+        }
+
+        .selected-file {
+            display: none;
+            margin-top: 10px;
+            padding: 8px 15px;
+            background-color: rgba(58, 134, 255, 0.1);
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .dashboard-header {
+                padding: 1rem;
+            }
+
+            .section-card {
+                margin-bottom: 15px;
+            }
+
+            .card-header {
+                padding: 0.75rem 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div class="container py-4">
+<div class="container py-4">
     <div class="dashboard-header text-center mb-4">
-      <h1><i class="fas fa-shield-alt me-2"></i>Adversarial Malware Analysis System</h1>
-      <p class="mt-2 mb-0">Advanced detection and analysis of malware evasion techniques</p>
+        <h1><i class="fas fa-shield-alt me-2"></i>Adversarial Malware Analysis System</h1>
+        <p class="mt-2 mb-0">Advanced detection and analysis of malware evasion techniques</p>
     </div>
 
     <!-- Upload Section -->
     <div class="card section-card">
-      <div class="card-header bg-primary text-white">
-        <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Upload Dataset</h5>
-      </div>
-      <div class="card-body">
-        <form id="upload-form">
-          <div class="mb-3">
-            <label for="file-upload" class="form-label">Select CSV file for analysis:</label>
-            <div class="custom-file-upload" id="file-upload-area">
-              <i class="fas fa-file-csv upload-icon"></i>
-              <h5>Drag & drop your CSV file here</h5>
-              <p class="text-muted">or click to browse files</p>
-              <input class="form-control" type="file" id="file-upload" accept=".csv" style="display: none;" />
-            </div>
-            <div class="selected-file" id="selected-file-info">
-              <i class="fas fa-file-alt me-2"></i><span id="file-name">No file selected</span>
-            </div>
-          </div>
-          <button type="submit" class="btn btn-primary px-4">
-            <i class="fas fa-microscope me-2"></i>Analyse Dataset
-          </button>
-        </form>
-      </div>
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Upload Dataset</h5>
+        </div>
+        <div class="card-body">
+            <form id="upload-form">
+                <div class="mb-3">
+                    <label for="file-upload" class="form-label">Select CSV file for analysis:</label>
+                    <div class="custom-file-upload" id="file-upload-area">
+                        <i class="fas fa-file-csv upload-icon"></i>
+                        <h5>Drag & drop your CSV file here</h5>
+                        <p class="text-muted">or click to browse files</p>
+                        <input class="form-control" type="file" id="file-upload" accept=".csv" style="display: none;"/>
+                    </div>
+                    <div class="selected-file" id="selected-file-info">
+                        <i class="fas fa-file-alt me-2"></i><span id="file-name">No file selected</span>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label"><i class="fas fa-robot me-2"></i>Select Models to Train:</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="models" value="RandomForest" id="rf"
+                               checked>
+                        <label class="form-check-label" for="rf">Random Forest</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="models" value="KNN" id="knn" checked>
+                        <label class="form-check-label" for="knn">K-Nearest Neighbors (KNN)</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="models" value="LogisticRegression" id="lr"
+                               checked>
+                        <label class="form-check-label" for="lr">Logistic Regression</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="models" value="DecisionTree" id="dt"
+                               checked>
+                        <label class="form-check-label" for="dt">Decision Tree</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="models" value="SVM" id="svm" checked>
+                        <label class="form-check-label" for="svm">Support Vector Machine (SVM)</label>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary px-4">
+                    <i class="fas fa-microscope me-2"></i>Analyse Dataset
+                </button>
+            </form>
+        </div>
     </div>
 
     <!-- Processing Spinner -->
     <div id="processing" class="spinner-wrapper text-center">
-      <div class="spinner-border" role="status"></div>
-      <h4 class="mt-3">Processing your data...</h4>
-      <p class="text-muted">This may take a few moments</p>
+        <div class="spinner-border" role="status"></div>
+        <h4 class="mt-3">Processing your data...</h4>
+        <p class="text-muted">This may take a few moments</p>
     </div>
 
     <!-- Results Section -->
     <div id="results-container" class="results-container mt-4 fade-in">
-      <h2 class="mb-4 text-center results-heading">Model Training Results</h2>
+        <h2 class="mb-4 text-center results-heading">Model Training Results</h2>
 
-      <!-- Model Selector -->
-      <div class="mb-4">
-        <label for="model-selector" class="form-label"><i class="fas fa-robot me-2"></i>Select Model:</label>
-        <select id="model-selector" class="form-select form-select-lg"></select>
-      </div>
+        <!-- Model Selector -->
+        <div class="mb-4">
+            <label for="model-selector" class="form-label"><i class="fas fa-robot me-2"></i>Select Model:</label>
+            <select id="model-selector" class="form-select form-select-lg"></select>
+        </div>
 
-      <!-- Metrics -->
-      <div class="card mb-4">
-        <div class="card-header bg-light">
-          <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Performance Metrics</h5>
+        <!-- Metrics -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Performance Metrics</h5>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item">
+                    <span class="metrics-label"><i class="fas fa-bullseye"></i>Accuracy</span>
+                    <span id="accuracy-value" class="badge bg-primary rounded-pill">-</span>
+                </li>
+                <li class="list-group-item">
+                    <span class="metrics-label"><i class="fas fa-balance-scale"></i>F1 Score</span>
+                    <span id="f1-score-value" class="badge bg-primary rounded-pill">-</span>
+                </li>
+                <li class="list-group-item">
+                    <span class="metrics-label"><i class="fas fa-crosshairs"></i>Precision</span>
+                    <span id="precision-value" class="badge bg-primary rounded-pill">-</span>
+                </li>
+                <li class="list-group-item">
+                    <span class="metrics-label"><i class="fas fa-search"></i>Recall</span>
+                    <span id="recall-value" class="badge bg-primary rounded-pill">-</span>
+                </li>
+                <li class="list-group-item">
+                    <span class="metrics-label"><i class="fas fa-clock"></i>Training Time</span>
+                    <span id="training-time-value" class="badge bg-secondary rounded-pill">-</span>
+                </li>
+            </ul>
         </div>
-        <ul class="list-group list-group-flush">
-          <li class="list-group-item">
-            <span class="metrics-label"><i class="fas fa-bullseye"></i>Accuracy</span>
-            <span id="accuracy-value" class="badge bg-primary rounded-pill">-</span>
-          </li>
-          <li class="list-group-item">
-            <span class="metrics-label"><i class="fas fa-balance-scale"></i>F1 Score</span>
-            <span id="f1-score-value" class="badge bg-primary rounded-pill">-</span>
-          </li>
-          <li class="list-group-item">
-            <span class="metrics-label"><i class="fas fa-crosshairs"></i>Precision</span>
-            <span id="precision-value" class="badge bg-primary rounded-pill">-</span>
-          </li>
-          <li class="list-group-item">
-            <span class="metrics-label"><i class="fas fa-search"></i>Recall</span>
-            <span id="recall-value" class="badge bg-primary rounded-pill">-</span>
-          </li>
-          <li class="list-group-item">
-            <span class="metrics-label"><i class="fas fa-clock"></i>Training Time</span>
-            <span id="training-time-value" class="badge bg-secondary rounded-pill">-</span>
-          </li>
-        </ul>
-      </div>
 
-      <div class="row">
-        <div class="col-md-6">
-          <div id="model-details"></div>
+        <div class="row">
+            <div class="col-md-6">
+                <div id="model-details"></div>
+            </div>
+            <div class="col-md-6">
+                <div id="shap-values"></div>
+            </div>
         </div>
-        <div class="col-md-6">
-          <div id="shap-values"></div>
-        </div>
-      </div>
     </div>
 
+
+    <!-- Train Models -->
+    <div class="card section-card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Train Models</h5>
+        </div>
+        <div class="card-body">
+            <form action="/train_models" method="post">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-play-circle me-2"></i>Train Baseline Models
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Generate Adversarial Samples -->
+    <div class="card section-card">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0"><i class="fas fa-bug me-2"></i>Generate Adversarial Samples</h5>
+        </div>
+        <div class="card-body">
+            <form action="/generate_adversarial" method="post">
+                <div class="mb-3">
+                    <label for="attack-type" class="form-label">Attack Type:</label>
+                    <select class="form-select" name="attack_type" id="attack-type">
+                        <option value="fgsm">FGSM</option>
+                        <option value="pgd">PGD</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="epsilon" class="form-label">Epsilon (0.0 - 0.2):</label>
+                    <input type="number" name="epsilon" id="epsilon" class="form-control" min="0" max="0.2" step="0.01"
+                           value="0.1"/>
+                </div>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-radiation-alt me-2"></i>Generate Samples
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Apply Defences -->
+    <div class="card section-card">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0"><i class="fas fa-shield-virus me-2"></i>Apply Defence Mechanisms</h5>
+        </div>
+        <div class="card-body">
+            <form action="/apply_defences" method="post">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="defences" value="feature_smoothing"
+                           id="def1"/>
+                    <label class="form-check-label" for="def1">Feature Smoothing</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="defences" value="adversarial_training"
+                           id="def2"/>
+                    <label class="form-check-label" for="def2">Adversarial Training</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="defences" value="concept_drift" id="def3"/>
+                    <label class="form-check-label" for="def3">Concept Drift Detection</label>
+                </div>
+                <button type="submit" class="btn btn-warning mt-3">
+                    <i class="fas fa-tools me-2"></i>Apply Selected Defences
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Evaluate Models -->
+    <div class="card section-card">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-check-double me-2"></i>Evaluate Models</h5>
+        </div>
+        <div class="card-body">
+            <form action="/evaluate_models" method="post">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-poll me-2"></i>Run Evaluation
+                </button>
+            </form>
+        </div>
+    </div>
     <!-- Analysis Triggers -->
     <div class="card section-card">
-      <div class="card-header bg-info text-white">
-        <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Further Analysis</h5>
-      </div>
-      <div class="card-body d-grid gap-3">
-        <button class="btn btn-outline-dark" onclick="runAnalysis('/run_concept_drift', 'concept-drift-image')">
-          <i class="fas fa-wave-square"></i> Run Concept Drift Analysis
-        </button>
-        <button class="btn btn-outline-dark" onclick="runAnalysis('/run_defence_results', 'defence-results-image')">
-          <i class="fas fa-shield-alt"></i> Run Defence Results Visualisation
-        </button>
-        <button class="btn btn-outline-dark" onclick="runAnalysis('/run_model_results', 'model-results-image')">
-          <i class="fas fa-table"></i> Generate Model Evaluation Table
-        </button>
-      </div>
+        <div class="card-header bg-info text-white">
+            <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Further Analysis</h5>
+        </div>
+        <div class="card-body d-grid gap-3">
+            <button class="btn btn-outline-dark" onclick="runAnalysis('/run_concept_drift', 'concept-drift-image')">
+                <i class="fas fa-wave-square"></i> Run Concept Drift Analysis
+            </button>
+            <button class="btn btn-outline-dark" onclick="runAnalysis('/run_defence_results', 'defence-results-image')">
+                <i class="fas fa-shield-alt"></i> Run Defence Results Visualisation
+            </button>
+            <button class="btn btn-outline-dark" onclick="runAnalysis('/run_model_results', 'model-results-image')">
+                <i class="fas fa-table"></i> Generate Model Evaluation Table
+            </button>
+        </div>
     </div>
 
     <!-- Images -->
     <div class="image-section mt-4">
-      <h4><i class="fas fa-wave-square"></i>Concept Drift Analysis</h4>
-      <img id="concept-drift-image" class="result-img" src="" alt="Concept Drift" style="display: none;">
-      <a id="concept-drift-download" class="download-link" href="#" download>
-        <i class="fas fa-download"></i>Download Image
-      </a>
+        <h4><i class="fas fa-wave-square"></i>Concept Drift Analysis</h4>
+        <img id="concept-drift-image" class="result-img" src="" alt="Concept Drift" style="display: none;">
+        <a id="concept-drift-download" class="download-link" href="#" download>
+            <i class="fas fa-download"></i>Download Image
+        </a>
     </div>
 
     <div class="image-section">
-      <h4><i class="fas fa-shield-alt"></i>Defence Results</h4>
-      <img id="defence-results-image" class="result-img" src="" alt="Defence Results" style="display: none;">
-      <a id="defence-results-download" class="download-link" href="#" download>
-        <i class="fas fa-download"></i>Download Image
-      </a>
+        <h4><i class="fas fa-shield-alt"></i>Defence Results</h4>
+        <img id="defence-results-image" class="result-img" src="" alt="Defence Results" style="display: none;">
+        <a id="defence-results-download" class="download-link" href="#" download>
+            <i class="fas fa-download"></i>Download Image
+        </a>
     </div>
 
     <div class="image-section mb-5">
-      <h4><i class="fas fa-table"></i>Model Evaluation Table</h4>
-      <img id="model-results-image" class="result-img" src="" alt="Model Results" style="display: none;">
-      <a id="model-results-download" class="download-link" href="#" download>
-        <i class="fas fa-download"></i>Download Image
-      </a>
+        <h4><i class="fas fa-table"></i>Model Evaluation Table</h4>
+        <img id="model-results-image" class="result-img" src="" alt="Model Results" style="display: none;">
+        <a id="model-results-download" class="download-link" href="#" download>
+            <i class="fas fa-download"></i>Download Image
+        </a>
     </div>
-  </div>
+</div>
 
-  <!-- Scripts -->
-  <script>
+<!-- Scripts -->
+<script>
     // Initialize file upload UI
-    document.addEventListener("DOMContentLoaded", function() {
-      const fileUpload = document.getElementById("file-upload");
-      const fileUploadArea = document.getElementById("file-upload-area");
-      const selectedFileInfo = document.getElementById("selected-file-info");
-      const fileNameDisplay = document.getElementById("file-name");
-      
-      fileUploadArea.addEventListener("click", function() {
-        fileUpload.click();
-      });
-      
-      fileUploadArea.addEventListener("dragover", function(e) {
-        e.preventDefault();
-        fileUploadArea.classList.add("border-primary");
-      });
-      
-      fileUploadArea.addEventListener("dragleave", function() {
-        fileUploadArea.classList.remove("border-primary");
-      });
-      
-      fileUploadArea.addEventListener("drop", function(e) {
-        e.preventDefault();
-        fileUploadArea.classList.remove("border-primary");
-        
-        if (e.dataTransfer.files.length) {
-          fileUpload.files = e.dataTransfer.files;
-          updateFileInfo(e.dataTransfer.files[0]);
+    document.addEventListener("DOMContentLoaded", function () {
+        const fileUpload = document.getElementById("file-upload");
+        const fileUploadArea = document.getElementById("file-upload-area");
+        const selectedFileInfo = document.getElementById("selected-file-info");
+        const fileNameDisplay = document.getElementById("file-name");
+
+        fileUploadArea.addEventListener("click", function () {
+            fileUpload.click();
+        });
+
+        fileUploadArea.addEventListener("dragover", function (e) {
+            e.preventDefault();
+            fileUploadArea.classList.add("border-primary");
+        });
+
+        fileUploadArea.addEventListener("dragleave", function () {
+            fileUploadArea.classList.remove("border-primary");
+        });
+
+        fileUploadArea.addEventListener("drop", function (e) {
+            e.preventDefault();
+            fileUploadArea.classList.remove("border-primary");
+
+            if (e.dataTransfer.files.length) {
+                fileUpload.files = e.dataTransfer.files;
+                updateFileInfo(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileUpload.addEventListener("change", function () {
+            if (fileUpload.files.length) {
+                updateFileInfo(fileUpload.files[0]);
+            }
+        });
+
+        function updateFileInfo(file) {
+            fileNameDisplay.textContent = file.name;
+            selectedFileInfo.style.display = "block";
         }
-      });
-      
-      fileUpload.addEventListener("change", function() {
-        if (fileUpload.files.length) {
-          updateFileInfo(fileUpload.files[0]);
-        }
-      });
-      
-      function updateFileInfo(file) {
-        fileNameDisplay.textContent = file.name;
-        selectedFileInfo.style.display = "block";
-      }
     });
 
     document.getElementById("upload-form").addEventListener("submit", function (e) {
-      e.preventDefault();
-      const file = document.getElementById("file-upload").files[0];
-      if (!file || !file.name.endsWith(".csv")) {
-        alert("Please select a valid CSV file.");
-        return;
-      }
+        e.preventDefault();
+        const file = document.getElementById("file-upload").files[0];
+        if (!file || !file.name.endsWith(".csv")) {
+            alert("Please select a valid CSV file.");
+            return;
+        }
 
-      const formData = new FormData();
-      formData.append("file", file);
+        const formData = new FormData();
+        formData.append("file", file);
 
-      document.getElementById("processing").style.display = "block";
-      document.getElementById("results-container").style.display = "none";
+        // ✅ Append selected models
+        document.querySelectorAll("input[name='models']:checked").forEach(cb => {
+            formData.append("models", cb.value);
+        });
 
-      // Simulate delay for demonstration purposes
-      setTimeout(() => {
-        fetch("/upload", { method: "POST", body: formData })
-          .then(res => {
-            // Check if response is OK
-            if (!res.ok) {
-              throw new Error(`Server responded with status: ${res.status}`);
-            }
-            return res.json();
-          })
-          .then(data => {
-            if (!data) {
-              throw new Error("No data received from server");
-            }
-            if (data.error) throw new Error(data.error);
-            
-            // Validate data structure before processing
-            if (typeof data !== 'object' || Object.keys(data).length === 0) {
-              throw new Error("Invalid data format received");
-            }
-            
-            updateResults(data);
-            document.getElementById("processing").style.display = "none";
-            document.getElementById("results-container").style.display = "block";
-          })
-          .catch(err => {
-            console.error("Error processing data:", err);
-            alert("Error: " + err.message);
-            document.getElementById("processing").style.display = "none";
-          });
-      }, 1000);
+        document.getElementById("processing").style.display = "block";
+        document.getElementById("results-container").style.display = "none";
+
+        fetch("/upload", {method: "POST", body: formData})
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) throw new Error(data.error);
+                updateResults(data);
+                document.getElementById("processing").style.display = "none";
+                document.getElementById("results-container").style.display = "block";
+            })
+            .catch(err => {
+                console.error(err);
+                alert("Error: " + err.message);
+                document.getElementById("processing").style.display = "none";
+            });
     });
 
     function updateResults(data) {
-      const selector = document.getElementById("model-selector");
-      const models = Object.keys(data);
-      selector.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join("");
-      selector.onchange = () => displayMetrics(selector.value);
-      displayMetrics(models[0]);
+        const selector = document.getElementById("model-selector");
+        const models = Object.keys(data.results || {});
+        selector.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join("");
+        selector.onchange = () => displayMetrics(selector.value);
+        displayMetrics(models[0]);
 
-      function displayMetrics(model) {
-        const d = data[model];
-        
-        // Check if data values exist before using toFixed
-        const accuracy = d && d.accuracy ? (d.accuracy * 100).toFixed(2) + "%" : "-";
-        const f1Score = d && d.f1_score ? d.f1_score.toFixed(2) : "-";
-        const precision = d && d.precision ? d.precision.toFixed(2) : "-";
-        const recall = d && d.recall ? d.recall.toFixed(2) : "-";
-        const trainingTime = d && d.training_time ? d.training_time + "s" : "-";
-        
-        // Safely update UI elements
-        document.getElementById("accuracy-value").textContent = accuracy;
-        document.getElementById("f1-score-value").textContent = f1Score;
-        document.getElementById("precision-value").textContent = precision;
-        document.getElementById("recall-value").textContent = recall;
-        document.getElementById("training-time-value").textContent = trainingTime;
+        function displayMetrics(model) {
+            const d = data.results[model];
 
-        // Safely handle model details
-        let modelDetailsHtml = `
-          <div class="card mt-3 model-details-card">
-            <div class="card-header bg-light">
-              <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Model Details</h5>
-            </div>
-            <div class="card-body">`;
-            
-        if (d && d.model_details) {
-          const type = d.model_details.type || "Not specified";
-          const features = d.model_details.features || "Not specified";
-          
-          modelDetailsHtml += `
-              <div class="mb-2">
-                <strong><i class="fas fa-code-branch me-2"></i>Type:</strong> ${type}
-              </div>
-              <div>
-                <strong><i class="fas fa-list me-2"></i>Features:</strong> ${features}
-              </div>`;
-        } else {
-          modelDetailsHtml += `<p>No model details available</p>`;
+            if (!d) {
+                console.error("Model data is undefined for:", model);
+                return;
+            }
+
+            document.getElementById("accuracy-value").textContent =
+                typeof d.accuracy === "number" ? (d.accuracy * 100).toFixed(2) + "%" : "N/A";
+
+            document.getElementById("f1-score-value").textContent =
+                typeof d.f1_score === "number" ? d.f1_score.toFixed(2) : "N/A";
+
+            document.getElementById("precision-value").textContent =
+                typeof d.precision === "number" ? d.precision.toFixed(2) : "N/A";
+
+            document.getElementById("recall-value").textContent =
+                typeof d.recall === "number" ? d.recall.toFixed(2) : "N/A";
+
+            document.getElementById("training-time-value").textContent =
+                d.training_time !== undefined ? d.training_time + "s" : "N/A";
+
+            const modelType = d.model_details?.type || "N/A";
+            const modelFeatures = d.model_details?.features || "N/A";
+
+            document.getElementById("model-details").innerHTML = `
+    <div class="card mt-3 model-details-card">
+      <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Model Details</h5>
+      </div>
+      <div class="card-body">
+        <div class="mb-2">
+          <strong><i class="fas fa-code-branch me-2"></i>Type:</strong> ${modelType}
+        </div>
+        <div>
+          <strong><i class="fas fa-list me-2"></i>Features:</strong> ${modelFeatures}
+        </div>
+      </div>
+    </div>
+  `;
+
+            const shap = d.shap_values || {};
+            const shapHtml = Object.entries(shap)
+                .sort((a, b) => b[1] - a[1])
+                .map(([k, v]) => `
+      <div class="feature-item">
+        <span class="feature-name">${k}</span>
+        <span class="feature-value">${v.toFixed(4)}</span>
+      </div>
+    `).join("");
+
+            document.getElementById("shap-values").innerHTML = `
+    <div class="card mt-3 shap-values-card">
+      <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-puzzle-piece me-2"></i>Top SHAP Features</h5>
+      </div>
+      <div class="card-body">
+        <div class="shap-features-container">
+          ${shapHtml}
+        </div>
+      </div>
+    </div>
+  `;
         }
-        
-        modelDetailsHtml += `
-            </div>
-          </div>
-        `;
-        
-        document.getElementById("model-details").innerHTML = modelDetailsHtml;
 
-        // Safely handle SHAP values
-        const shap = (d && d.shap_values) || {};
-        let shapHtml = '';
-        
-        if (Object.keys(shap).length > 0) {
-          shapHtml = Object.entries(shap)
-            .sort((a, b) => b[1] - a[1])
-            .map(([k, v]) => `
-              <div class="feature-item">
-                <span class="feature-name">${k}</span>
-                <span class="feature-value">${v.toFixed(4)}</span>
-              </div>
-            `).join("");
-        } else {
-          shapHtml = "<p>No SHAP values available</p>";
+
+        function runAnalysis(endpoint, imageId) {
+            const img = document.getElementById(imageId);
+            const downloadLink = document.getElementById(imageId.replace("image", "download"));
+
+            // Show loading state on the image
+            if (img.style.display !== "none") {
+                img.style.opacity = "0.5";
+            }
+
+            fetch(endpoint)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.image_path) {
+                        img.src = data.image_path + '?t=' + new Date().getTime(); // bust cache
+                        img.style.display = "block";
+                        img.style.opacity = "1";
+
+                        downloadLink.href = img.src;
+                        downloadLink.style.display = "inline-block";
+                    } else {
+                        alert("No image returned.");
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("Error running analysis.");
+                    img.style.opacity = "1";
+                });
         }
 
-        document.getElementById("shap-values").innerHTML = `
-          <div class="card mt-3 shap-values-card">
-            <div class="card-header bg-light">
-              <h5 class="mb-0"><i class="fas fa-puzzle-piece me-2"></i>Top SHAP Features</h5>
-            </div>
-            <div class="card-body">
-              <div class="shap-features-container">
-                ${shapHtml}
-              </div>
-            </div>
-          </div>
-        `;
-      }
-    }
-
-    function runAnalysis(endpoint, imageId) {
-      const img = document.getElementById(imageId);
-      const downloadLink = document.getElementById(imageId.replace("image", "download"));
-      
-      // Show loading state on the image
-      if (img.style.display !== "none") {
-        img.style.opacity = "0.5";
-      }
-      
-      fetch(endpoint)
-        .then(res => res.json())
-        .then(data => {
-          if (data.image_path) {
-            img.src = data.image_path + '?t=' + new Date().getTime(); // bust cache
-            img.style.display = "block";
-            img.style.opacity = "1";
-
-            downloadLink.href = img.src;
-            downloadLink.style.display = "inline-block";
-          } else {
-            alert("No image returned.");
-          }
-        })
-        .catch(err => {
-          console.error(err);
-          alert("Error running analysis.");
-          img.style.opacity = "1";
-        });
-    }
-
-    // Mock data for testing UI
-    function loadMockData() {
-      const mockData = {
-        "Random Forest": {
-          "accuracy": 0.924,
-          "f1_score": 0.915,
-          "precision": 0.932,
-          "recall": 0.899,
-          "training_time": "2.45",
-          "model_details": {
-            "type": "Random Forest Classifier",
-            "features": "255 features used"
-          },
-          "shap_values": {
-            "api_call_sequence": 0.2345,
-            "bytes_frequency": 0.1892,
-            "entropy": 0.1654,
-            "imports_count": 0.1432,
-            "section_entropy": 0.1321,
-            "strings_count": 0.0987
-          }
-        },
-        "XGBoost": {
-          "accuracy": 0.935,
-          "f1_score": 0.928,
-          "precision": 0.941,
-          "recall": 0.915,
-          "training_time": "3.12",
-          "model_details": {
-            "type": "XGBoost Classifier",
-            "features": "255 features used"
-          },
-          "shap_values": {
-            "api_call_sequence": 0.2567,
-            "bytes_frequency": 0.2134,
-            "section_entropy": 0.1876,
-            "imports_count": 0.1543,
-            "entropy": 0.1298,
-            "strings_count": 0.0876
-          }
+        // Mock data for testing UI
+        function loadMockData() {
+            const mockData = {
+                "Random Forest": {
+                    "accuracy": 0.924,
+                    "f1_score": 0.915,
+                    "precision": 0.932,
+                    "recall": 0.899,
+                    "training_time": "2.45",
+                    "model_details": {
+                        "type": "Random Forest Classifier",
+                        "features": "255 features used"
+                    },
+                    "shap_values": {
+                        "api_call_sequence": 0.2345,
+                        "bytes_frequency": 0.1892,
+                        "entropy": 0.1654,
+                        "imports_count": 0.1432,
+                        "section_entropy": 0.1321,
+                        "strings_count": 0.0987
+                    }
+                },
+                "XGBoost": {
+                    "accuracy": 0.935,
+                    "f1_score": 0.928,
+                    "precision": 0.941,
+                    "recall": 0.915,
+                    "training_time": "3.12",
+                    "model_details": {
+                        "type": "XGBoost Classifier",
+                        "features": "255 features used"
+                    },
+                    "shap_values": {
+                        "api_call_sequence": 0.2567,
+                        "bytes_frequency": 0.2134,
+                        "section_entropy": 0.1876,
+                        "imports_count": 0.1543,
+                        "entropy": 0.1298,
+                        "strings_count": 0.0876
+                    }
+                }
+            };
         }
-      };
-      
-      // For testing only - uncomment to see UI with mock data
-      updateResults(mockData);
-      document.getElementById("results-container").style.display = "block";
     }
-    
-    // Load mock data automatically for testing
-    // Comment this out when connecting to real backend
-    document.addEventListener("DOMContentLoaded", function() {
-      // Uncomment the next line to automatically load mock data for testing
-      // setTimeout(loadMockData, 1000);
-    });
-  </script>
+</script>
 </body>
 </html>
