@@ -143,8 +143,13 @@ def generate_adversarial():
             sample_path = os.path.join(OUTPUT_DIR, f"adversarial_samples_fgsm_eps_{epsilon}.csv")
             run_attack_simulation(models, X_test, y_test, [epsilon], features_to_lock, source_model)
         elif attack_type == 'pgd':
-            sample_path = os.path.join(OUTPUT_DIR, f"adversarial_retrain_pgd_eps_{epsilon}.csv")
-            run_pgd_attack_simulation(models, X_test, y_test, [epsilon], features_to_lock, source_model)
+            sample_path = os.path.join(OUTPUT_DIR, f"adversarial_samples_pgd_eps_{epsilon}.csv")
+            try:
+                run_pgd_attack_simulation(models, X_test, y_test, [epsilon], features_to_lock, source_model)
+            except Exception as pgd_err:
+                print("PGD Error:", str(pgd_err))
+                traceback.print_exc()
+                return jsonify({'error': f'PGD simulation failed: {pgd_err}'}), 500
         else:
             return jsonify({'error': 'Invalid attack type selected.'}), 400
 
