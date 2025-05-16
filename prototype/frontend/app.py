@@ -191,6 +191,11 @@ def generate_adversarial():
         combined_path = os.path.join(OUTPUT_DIR, f"combined_dataset_with_adversarial_eps_{epsilon}.csv")
         combined_df.to_csv(combined_path, index=False)
 
+        # Always keep a consistent file for downstream use
+        latest_merged_path = os.path.join(OUTPUT_DIR, "latest_combined_dataset.csv")
+        combined_df.to_csv(latest_merged_path, index=False)
+        print(f"📝 Also saved merged dataset as: {latest_merged_path}")
+
         evaluation = {
             'accuracy': (y_pred == y_combined).mean(),
             'f1_score': report['weighted avg']['f1-score'],
