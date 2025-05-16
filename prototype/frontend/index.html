@@ -597,19 +597,15 @@
 
                     if (data.evaluation) {
                         const adv = data.evaluation;
-                        metricBox.innerHTML = `
-                            <div class="card border-danger mt-3">
-                                <div class="card-header bg-danger text-white">
-                                    <h5 class="mb-0"><i class="fas fa-bug me-2"></i>Adversarial Performance Metrics</h5>
-                                </div>
-                                <div class="card-body">
-                                    <p><strong>Accuracy:</strong> ${(adv.accuracy * 100).toFixed(2)}%</p>
-                                    <p><strong>F1 Score:</strong> ${adv.f1_score.toFixed(2)}</p>
-                                    <p><strong>Precision:</strong> ${adv.precision.toFixed(2)}</p>
-                                    <p><strong>Recall:</strong> ${adv.recall.toFixed(2)}</p>
-                                </div>
-                            </div>
-                        `;
+
+                        // Update existing metric elements
+                        document.getElementById("accuracy-value").textContent = (adv.accuracy * 100).toFixed(2) + "%";
+                        document.getElementById("f1-score-value").textContent = adv.f1_score.toFixed(2);
+                        document.getElementById("precision-value").textContent = adv.precision.toFixed(2);
+                        document.getElementById("recall-value").textContent = adv.recall.toFixed(2);
+
+                        // Optional: scroll to top or results section
+                        document.getElementById("results-container").scrollIntoView({behavior: "smooth"});
                     } else {
                         metricBox.innerHTML = ""; // Clear previous metrics if not available
                     }
