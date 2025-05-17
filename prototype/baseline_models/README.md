@@ -6,27 +6,27 @@ This repository contains baseline machine learning classifiers developed to dete
 
 ## Repository Structure:
 
----
+```
 baseline_models/
 ├── baseline_data/
-│   ├── Adversarial_Features.csv          # List of selected mutable features for adversarial attacks
-│   ├── Classifier_Results.xlsx           # Evaluation metrics and SHAP values
-│   ├── Train_Dataset.csv                 # Training dataset
-│   ├── Validation_Dataset.csv            # Validation dataset
-│   ├── Test_Dataset.csv                  # Test dataset
+│   ├── Adversarial_Features.csv          # Mutable features selected for FGSM/PGD
+│   ├── Classifier_Results.xlsx           # Classification metrics and SHAP values
+│   ├── Train_Dataset.csv / Validation_Dataset.csv / Test_Dataset.csv
 │
 ├── shap_charts/
-│   ├── RandomForest_SHAP.png             # SHAP bar plot (Random Forest)
-│   ├── LogisticRegression_SHAP.png       # SHAP bar plot (Logistic Regression)
-│   ├── DecisionTree_SHAP.png             # SHAP bar plot (Decision Tree)
+│   ├── *_SHAP.png                        # Visualized SHAP importance per model
 │
 ├── trained_baseline_models/
-│   ├── *.pkl                              # Saved model binaries for each classifier
+│   ├── *_model.pkl                       # Saved classifiers (e.g., RandomForest, KNN)
+│   ├── label_encoder.pkl                 # Saved label encoder for inverse-transform
+│   ├── feature_names.pkl                 # Feature list for input reconstruction
 │
 ├── data/
-│   └── CIC-MalMem2022.csv                # Full dataset file (source: CIC-MalMem-2022)
-
----
+│   └── CIC-MalMem2022.csv                # Full memory dataset (preprocessed)
+├── Baseline_Models_Analysis.ipynb        # Jupyter notebook for standalone model development
+├── baseline_models_webUI.py              # This script: for model execution via interface
+├── README.md
+```
 
 ## Notebook: Baseline_Models_Analysis.ipynb
 
