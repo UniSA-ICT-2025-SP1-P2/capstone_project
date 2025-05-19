@@ -13,6 +13,7 @@ from prototype.results_presentation.defence_results_presentation import visualis
 from prototype.results_presentation.model_results import load_csv_data, create_model_results_table
 from prototype.defence_prototype.src.defences import adversarial_training, feature_smoothing, ensemble_learning
 from prototype.defence_prototype.src.evaluate_defences import run_evaluation
+from prototype.baseline_models.baseline_models_webUI import find_category_name
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -139,17 +140,13 @@ def generate_adversarial():
         source_model = available_valid_models[0]
         print(f"Running {attack_type.upper()} using {source_model}, epsilon={epsilon}")
 
+        # Run attack
         if attack_type == 'fgsm':
             sample_path = os.path.join(OUTPUT_DIR, f"adversarial_samples_fgsm_eps_{epsilon}.csv")
             run_attack_simulation(models, X_test, y_test, [epsilon], features_to_lock, source_model)
         elif attack_type == 'pgd':
             sample_path = os.path.join(OUTPUT_DIR, f"adversarial_samples_pgd_eps_{epsilon}.csv")
-            try:
-                run_pgd_attack_simulation(models, X_test, y_test, [epsilon], features_to_lock, source_model)
-            except Exception as pgd_err:
-                print("PGD Error:", str(pgd_err))
-                traceback.print_exc()
-                return jsonify({'error': f'PGD simulation failed: {pgd_err}'}), 500
+            run_pgd_attack_simulation(models, X_test, y_test, [epsilon], features_to_lock, source_model)
         else:
             return jsonify({'error': 'Invalid attack type selected.'}), 400
 
@@ -160,42 +157,54 @@ def generate_adversarial():
         if 'Class' not in adv_df.columns:
             return jsonify({'error': 'Missing "Class" column in adversarial samples.'}), 500
 
-        # Drop irrelevant columns and reorder
-        adv_df = adv_df.drop(columns=[col for col in adv_df.columns if col not in feature_names + ['Class']],
-                             errors='ignore')
+        # Keep only relevant columns
+        adv_df = adv_df.drop(columns=[col for col in adv_df.columns if col not in feature_names + ['Class']], errors='ignore')
         for f in feature_names:
             if f not in adv_df.columns:
                 adv_df[f] = 0
         adv_df = adv_df[feature_names + ['Class']]
-        adv_df["Class"] = adv_df["Class"].replace("Malware", "Conti")
 
-        # Load original uploaded data for merging
+        # Load original uploaded data
         uploaded_file = os.listdir(app.config['UPLOAD_FOLDER'])[0]
         original_path = os.path.join(app.config['UPLOAD_FOLDER'], uploaded_file)
         original_df = pd.read_csv(original_path)
-        original_df = original_df[feature_names + ['Class']]
-        original_df["Class"] = original_df["Class"].replace("Malware", "Conti")
 
-        # Merge datasets
+        # Replace generic "Malware" with actual category using find_category_name
+        if 'Category' in original_df.columns:
+            original_df["category_name"] = original_df["Category"].apply(find_category_name)
+        else:
+            return jsonify({'error': 'Missing "Category" column for mapping.'}), 500
+
+        original_df["Class"] = original_df.apply(
+            lambda row: row["category_name"] if row["Class"] == "Malware" else row["Class"], axis=1
+        )
+
+        original_df = original_df[feature_names + ['Class']]
+
+        # Merge original and adversarial
         combined_df = pd.concat([original_df, adv_df], ignore_index=True)
 
-        # Evaluate merged set
+        # Final fix: map 'Malware' → actual category if any rows slipped through
+        combined_df["Class"] = combined_df["Class"].replace("Malware", "Conti")  # fallback only
+
+        # Encode using trained label encoder (category_name-style)
         X_combined = combined_df[feature_names].astype(float)
         y_combined = label_encoder.transform(combined_df["Class"])
+
         model = models[source_model]
         y_pred = model.predict(X_combined)
-        report = classification_report(y_combined, y_pred, output_dict=True, zero_division=0)
+        combined_df["category_name"] = label_encoder.inverse_transform(y_pred)
 
-        combined_df["Predicted"] = label_encoder.inverse_transform(y_pred)
-        combined_df["True_Label"] = label_encoder.inverse_transform(y_combined)
+        combined_df = combined_df.rename(columns={"Class": "label"})
+
+        # Save files
         combined_path = os.path.join(OUTPUT_DIR, f"combined_dataset_with_adversarial_eps_{epsilon}.csv")
         combined_df.to_csv(combined_path, index=False)
-
-        # Always keep a consistent file for downstream use
         latest_merged_path = os.path.join(OUTPUT_DIR, "latest_combined_dataset.csv")
         combined_df.to_csv(latest_merged_path, index=False)
         print(f"📝 Also saved merged dataset as: {latest_merged_path}")
 
+        report = classification_report(y_combined, y_pred, output_dict=True, zero_division=0)
         evaluation = {
             'accuracy': (y_pred == y_combined).mean(),
             'f1_score': report['weighted avg']['f1-score'],
@@ -220,21 +229,37 @@ def apply_defences():
         selected = request.form.getlist('defences')
         X_test, y_test, label_encoder, feature_names = load_test_data()
 
+        # === Feature Smoothing: save smoothed test dataset ===
         if 'feature_smoothing' in selected:
-            feature_smoothing.apply_feature_smoothing(X_test)
-            responses.append('Feature Smoothing applied.')
+            original_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
+            smoothed_path = os.path.join(DATA_DIR, 'Test_Dataset_smoothed.csv')
 
+            feature_smoothing.apply_feature_smoothing_path(
+                input_path=original_path,
+                noise_std=0.02,
+                output_path=smoothed_path
+            )
+            responses.append('✅ Feature Smoothing applied and saved.')
+
+        # === Adversarial Training: retrain and overwrite neural_net.pt ===
         if 'adversarial_training' in selected:
-            adversarial_training.adversarial_train()
-            responses.append('Adversarial Training completed.')
+            from prototype.defence_prototype.src.defences.adversarial_training import run_adversarial_training
+            run_adversarial_training(data_dir=DATA_DIR, model_dir=MODEL_DIR, epochs=10, lr=0.001)
+            responses.append('✅ Adversarial Training completed and model updated.')
 
+        # === Concept Drift: generate visual only ===
         if 'concept_drift' in selected:
             visualize_concept_drift(save_path='static/concept_drift_analysis.png')
-            responses.append('Concept Drift visualised.')
+            responses.append('🧠 Concept Drift visualised (no model impact).')
 
+        # === Ensemble Learning: overwrite ensemble models if needed ===
         if 'ensemble_learning' in selected:
-            ensemble_learning.apply_ensemble_learning()
-            responses.append('Ensemble Learning applied.')
+            from prototype.defence_prototype.src.defences.ensemble_learning import run_ensemble_evaluation
+            ensemble_result = run_ensemble_evaluation(
+                data_path=os.path.join(DATA_DIR, 'Test_Dataset.csv'),  # or smoothed path if needed
+                model_dir=MODEL_DIR
+            )
+            responses.append(f'🧩 Ensemble Learning applied (Acc: {ensemble_result["accuracy"]:.2f}).')
 
         return jsonify({'message': responses})
 
@@ -245,9 +270,24 @@ def apply_defences():
 @app.route('/evaluate_models', methods=['POST'])
 def evaluate_models():
     try:
-        results = run_evaluation()
-        return jsonify({'evaluation': results})
+        data_files = {}
+
+        combined_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset.csv')
+        smoothed_path = os.path.join(DATA_DIR, 'Test_Dataset_smoothed.csv')
+        default_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
+
+        # Priority: Combined (adversarial) > Smoothed > Default
+        if os.path.exists(combined_path):
+            data_files['clean'] = combined_path
+        elif os.path.exists(smoothed_path):
+            data_files['clean'] = smoothed_path
+        else:
+            data_files['clean'] = default_path
+
+        results = run_evaluation(data_files=data_files)
+        return jsonify({'evaluation': results.to_dict(orient='records')})
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 @app.route('/run_concept_drift', methods=['GET'])
