@@ -8,22 +8,33 @@ import argparse
 from tabulate import tabulate
 import io
 from PIL import Image
+import os
+import joblib
+import seaborn as sns
+
+# Define base paths
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'attack_simulation'))
+DATA_DIR = os.path.join(BASE_DIR, "attack_simulation_results")
+OUTPUT_DIR = os.path.join(BASE_DIR, "attack_simulation_viz")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 #Load data from csv
-def load_csv_data(filename="model_results.csv"):
+def load_csv_data():
     """
-    Load data from a CSV file in the same GitHub folder.
-    
     Parameters:
     filename (str): Name of the CSV file to read, defaults to 'model_results.csv'
     
     Returns:
     pandas.DataFrame: The data from the CSV file
     """
+
+    """Load necessary resources for visualisation"""
+    filename = joblib.load(os.path.join(DATA_DIR, "attack_results_fgsm_summary.csv"))
+
     try:
         # Read the CSV file into a pandas DataFrame
-        data = pd.read_csv(filename)
-        return data
+        df = pd.read_csv(filename)
+        return df
     except FileNotFoundError:
         print(f"Error: File '{filename}' not found in the current directory.")
         return None
@@ -31,7 +42,7 @@ def load_csv_data(filename="model_results.csv"):
         print(f"Error loading CSV data: {e}")
         return None
 
-def create_model_results_table(model_results):
+def create_model_results_table():
     """
     Create a visualization table of model evaluation metrics.
     
@@ -46,84 +57,146 @@ def create_model_results_table(model_results):
         PNG image of the visualization table
     """
     # Create a copy to avoid modifying the original dataframe
-    df = model_results.copy()
+    df = load_csv_data()
 
-    # Add model index for identification
-    df['training'] = [f"Training Run {i+1}" for i in range(len(df))]
+     # Set up the style
+    sns.set_style("whitegrid")
     
-    # Calculate average training time - safely handle different data structures
-    #if len(df) == 1:
-        # If there's only one row
-     #   avg_training_time = df['training_time'].iloc[0]
-    #else:
-        # If there are multiple rows
-    #    avg_training_time = pd.Series(df['training_time']).mean()
-
-    # Select columns for visualization
-    metrics_df = df[['training', 'precision', 'recall', 'f1-score', 'accuracy']]
+    # Create a figure for the table at the top
+    fig = plt.figure(figsize=(14, 14))  # Increased height to accommodate table
     
-    # Set up the figure and axes
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Create a layout with a table at top and 2x2 subplots below
+    gs = fig.add_gridspec(5, 2, height_ratios=[1, 2, 2, 2, 2])
     
-    # Remove axes
-    ax.axis('tight')
-    ax.axis('off')
+    # Create a table spanning the top row
+    ax_table = fig.add_subplot(gs[0, :])
+    ax_table.axis('off')  # Hide axes for table
+    
+    # Format the data for the table - round numeric values
+    table_data = df.copy()
+    for col in ['Accuracy', 'Precision', 'Recall', 'F1-score']:
+        table_data[col] = table_data[col].round(3)
     
     # Create the table
-    metrics_data = metrics_df.values.tolist()  # Convert to list for better compatibility
-    column_headers = ['Training Run', 'Precision', 'Recall', 'F1-Score', 'Accuracy']
-    
-    # Format numeric values
-    for i in range(len(metrics_data)):
-        for j in range(1, 5):  # Skip the model name column
-            metrics_data[i][j] = f"{float(metrics_data[i][j]):.2f}"
-    
-    table = ax.table(
-        cellText=metrics_data,
-        colLabels=column_headers,
-        loc='center',
+    table = ax_table.table(
+        cellText=table_data.values,
+        colLabels=table_data.columns,
         cellLoc='center',
-        colColours=['#e6e6e6'] * 5
+        loc='center',
+        bbox=[0, 0, 1, 1]
     )
-    
-    # Add a row for training time at the bottom
-    #bottom_row = table.add_cell(len(metrics_data), 0, 
-    #                          width=1, height=0.2, 
-    #                          text='Average Training Time',
-    #                          loc='center')
-    
-   # # Add training time value
-   # time_cell = table.add_cell(len(metrics_data), 1, 
-   #                           width=4, height=0.2, 
-   #                           text=f"{avg_training_time:.2f} seconds",
-   #                           loc='center')
     
     # Style the table
     table.auto_set_font_size(False)
-    table.set_fontsize(12)
-    table.scale(1, 1.5)
+    table.set_fontsize(10)
+    table.scale(1, 1.5)  # Adjust table size
     
-    # Apply simple alternating row coloring for readability
-    for i in range(len(metrics_data)):
-        row_color = '#f2f2f2' if i % 2 == 0 else 'white'
-        for j in range(len(metrics_data[i])):  # Use actual length of row
-            try:
-                cell = table[(i+1, j)]  # +1 because of the header row
-                cell.set_facecolor(row_color)
-            except KeyError:
-                # Skip if cell doesn't exist
-                continue
+    # Add title above the table
+    ax_table.set_title('FGSM Attack Results Summary', fontsize=16, pad=20)
     
-    # Style the bottom row
-    #bottom_row.set_facecolor('#e6e6e6')
-    #time_cell.set_facecolor('#e6e6e6')
+    # Define metrics
+    metrics = ['Accuracy', 'Precision', 'Recall', 'F1-score']
+
+    # Create another visualization: combined line plot for LogisticRegression metrics with table
+    fig_line = plt.figure(figsize=(12, 10))  # Increased height for table
     
-    # Add a title
-    plt.title('Model Evaluation Metrics', fontsize=16, pad=20)
+    # Create a layout with table at top and line chart below
+    gs_line = fig_line.add_gridspec(2, 1, height_ratios=[1, 3])
     
-    # Adjust layout
-    plt.tight_layout()
+    # Create a table for LogisticRegression results
+    ax_lr_table = fig_line.add_subplot(gs_line[0, 0])
+    ax_lr_table.axis('off')  # Hide axes for table
     
+    # Filter data for just LogisticRegression
+    lr_df = df[df['Classifier'] == 'LogisticRegression']
+    
+    # Format the data for the table - round numeric values
+    lr_table_data = lr_df.copy()
+    lr_table_data = lr_table_data.drop(columns=['Classifier'])  # Remove redundant column
+    for col in ['Accuracy', 'Precision', 'Recall', 'F1-score']:
+        lr_table_data[col] = lr_table_data[col].round(3)
+    
+    # Create the table
+    lr_table = ax_lr_table.table(
+        cellText=lr_table_data.values,
+        colLabels=lr_table_data.columns,
+        cellLoc='center',
+        loc='center',
+        bbox=[0, 0, 1, 1]
+    )
+    
+    # Style the table
+    lr_table.auto_set_font_size(False)
+    lr_table.set_fontsize(10)
+    lr_table.scale(1, 1.5)  # Adjust table size
+    
+    # Add title above the table
+    ax_lr_table.set_title('LogisticRegression Results Summary', fontsize=16, pad=20)
+    
+    # Create line chart below the table
+    ax_line = fig_line.add_subplot(gs_line[1, 0])
+    
+    for metric in metrics:
+        ax_line.plot(lr_df['Epsilon'], lr_df[metric], marker='o', linewidth=2, label=metric)
+
+    ax_line.set_title('LogisticRegression Performance Metrics vs Epsilon', fontsize=16)
+    ax_line.set_xlabel('Epsilon', fontsize=14)
+    ax_line.set_ylabel('Score', fontsize=14)
+    ax_line.grid(True, linestyle='--', alpha=0.7)
+    ax_line.legend(fontsize=12)
+    ax_line.set_xticks(lr_df['Epsilon'])
+    ax_line.set_ylim(-0.05, 1.05)  # Set y-axis limits
+
+    # Create another visualization: combined line plot for DecisionTree metrics with table
+    fig_line = plt.figure(figsize=(12, 10))  # Increased height for table
+    
+    # Create a layout with table at top and line chart below
+    gs_line = fig_line.add_gridspec(2, 1, height_ratios=[1, 3])
+    
+    # Create a table for DecisionTree results
+    ax_lr_table = fig_line.add_subplot(gs_line[0, 0])
+    ax_lr_table.axis('off')  # Hide axes for table
+    
+    # Filter data for just DecisionTree
+    lr_df = df[df['Classifier'] == 'DecisionTree']
+    
+    # Format the data for the table - round numeric values
+    lr_table_data = lr_df.copy()
+    lr_table_data = lr_table_data.drop(columns=['Classifier'])  # Remove redundant column
+    for col in ['Accuracy', 'Precision', 'Recall', 'F1-score']:
+        lr_table_data[col] = lr_table_data[col].round(3)
+    
+    # Create the table
+    lr_table = ax_lr_table.table(
+        cellText=lr_table_data.values,
+        colLabels=lr_table_data.columns,
+        cellLoc='center',
+        loc='center',
+        bbox=[0, 0, 1, 1]
+    )
+    
+    # Style the table
+    lr_table.auto_set_font_size(False)
+    lr_table.set_fontsize(10)
+    lr_table.scale(1, 1.5)  # Adjust table size
+    
+    # Add title above the table
+    ax_lr_table.set_title('DecisionTree Results Summary', fontsize=16, pad=20)
+    
+    # Create line chart below the table
+    ax_line = fig_line.add_subplot(gs_line[1, 0])
+    
+    for metric in metrics:
+        ax_line.plot(lr_df['Epsilon'], lr_df[metric], marker='o', linewidth=2, label=metric)
+
+    ax_line.set_title('DecisionTree Performance Metrics vs Epsilon', fontsize=16)
+    ax_line.set_xlabel('Epsilon', fontsize=14)
+    ax_line.set_ylabel('Score', fontsize=14)
+    ax_line.grid(True, linestyle='--', alpha=0.7)
+    ax_line.legend(fontsize=12)
+    ax_line.set_xticks(lr_df['Epsilon'])
+    ax_line.set_ylim(-0.05, 1.05)  # Set y-axis limits
+
     # Convert plot to image
     buf = io.BytesIO()
     plt.savefig(buf, format='png', dpi=300, bbox_inches='tight')

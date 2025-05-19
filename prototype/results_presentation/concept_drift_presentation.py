@@ -8,24 +8,26 @@ import io
 import matplotlib.gridspec as gridspec
 from matplotlib.colors import LinearSegmentedColormap
 from scipy.stats import gaussian_kde
+import os
+import joblib
 
 # Set the style for the plots
 plt.style.use('seaborn-v0_8-whitegrid')
 sns.set_context("paper", font_scale=1.2)
 
-#Load data from csv
-def load_csv_data(filename="concept_drift_results.csv"):
-    """
-    Load data from a CSV file in the same GitHub folder.
-    
-    Parameters:
-    filename (str): Name of the CSV file to read, defaults to 'concept_drift_results.csv'
-    
-    Returns:
-    pandas.DataFrame: The data from the CSV file
-    """
+# Define base paths
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'defence_prototype'))
+DATA_DIR = os.path.join(BASE_DIR, "results")
+OUTPUT_DIR = os.path.join(BASE_DIR, "defence_prototype_viz")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+def load_csv_data():
+
+    """Load necessary resources for visualisation"""
+    filename = joblib.load(os.path.join(DATA_DIR, "concept_drift_results.csv"))
+
     try:
-        # Read the CSV file into a pandas DataFrame
+    # Read the CSV file into a pandas DataFrame
         df = pd.read_csv(filename)
         return df
     except FileNotFoundError:
