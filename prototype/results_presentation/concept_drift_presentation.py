@@ -16,15 +16,20 @@ plt.style.use('seaborn-v0_8-whitegrid')
 sns.set_context("paper", font_scale=1.2)
 
 # Define base paths
-BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'defence_prototype'))
+try:
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'defence_prototype'))
+except NameError:
+    # __file__ is not defined (e.g., in Jupyter)
+    BASE_DIR = os.path.abspath(os.path.join(os.getcwd(), '..', 'defence_prototype'))
+
 DATA_DIR = os.path.join(BASE_DIR, "results")
-OUTPUT_DIR = os.path.join(BASE_DIR, "defence_prototype_viz")
+OUTPUT_DIR = os.path.join(BASE_DIR, "results")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 def load_csv_data():
 
     """Load necessary resources for visualisation"""
-    filename = joblib.load(os.path.join(DATA_DIR, "concept_drift_results.csv"))
+    filename = os.path.join(DATA_DIR, "concept_drift_results.csv")
 
     try:
     # Read the CSV file into a pandas DataFrame
@@ -305,9 +310,10 @@ def visualize_concept_drift():
     fig.subplots_adjust(hspace=0.5, wspace=0.4, top=0.92)
     fig.tight_layout(rect=[0, 0, 1, 0.95])  # Leave space for subtitle
 
-    return fig
-    
     # Save and show
-    #fig.savefig("concept_drift_analysis.png", dpi=300, bbox_inches='tight', pad_inches=0.5, facecolor='white')
-    #plt.show()
-    #print("Main visualization completed and saved to 'concept_drift_analysis.png'")
+    filename = 'concept_drift_analysis.png'
+    save_path = os.path.join(OUTPUT_DIR, filename)
+    fig.savefig(save_path, dpi=300, bbox_inches='tight', pad_inches=0.5, facecolor='white')
+    plt.show()
+    print("Main visualization completed and saved to 'concept_drift_analysis.png'")
+    return fig

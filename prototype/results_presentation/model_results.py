@@ -240,11 +240,11 @@ def create_model_results_table():
     ax_line.set_xticks(lr_df['Epsilon'])
     ax_line.set_ylim(-0.05, 1.05)  # Set y-axis limits
 
-    # Convert plot to image
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=300, bbox_inches='tight')
-    buf.seek(0)
-    img = Image.open(buf)
+    # Save and show
+    filename = 'model_results.png'
+    save_path = os.path.join(OUTPUT_DIR, filename)
+    fig.savefig(save_path, dpi=300, bbox_inches='tight', pad_inches=0.5, facecolor='white')
+    plt.show()
+    print("Main visualization completed and saved to 'model_results.png'")
     
-    return img
-
+    return fig
