@@ -516,11 +516,9 @@
             <h5 class="mb-0"><i class="fas fa-check-double me-2"></i>Evaluate Models</h5>
         </div>
         <div class="card-body">
-            <form action="/evaluate_models" method="post">
-                <button type="submit" class="btn btn-success">
-                    <i class="fas fa-poll me-2"></i>Run Evaluation
-                </button>
-            </form>
+            <button id="evaluate-models-btn" class="btn btn-success">
+                <i class="fas fa-poll me-2"></i>Run Evaluation
+            </button>
         </div>
     </div>
     <!-- Analysis Triggers -->
@@ -596,15 +594,38 @@
                     }
 
                     if (data.evaluation) {
-                        const adv = data.evaluation;
+                        const evaluation = data.evaluation;
+                        const selector = document.getElementById("model-selector");
+                        const models = Object.keys(evaluation);
+                        selector.innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join("");
 
-                        // Update existing metric elements
-                        document.getElementById("accuracy-value").textContent = (adv.accuracy * 100).toFixed(2) + "%";
-                        document.getElementById("f1-score-value").textContent = adv.f1_score.toFixed(2);
-                        document.getElementById("precision-value").textContent = adv.precision.toFixed(2);
-                        document.getElementById("recall-value").textContent = adv.recall.toFixed(2);
+                        // Update metrics display when model is selected
+                        selector.onchange = () => {
+                            const model = selector.value;
+                            const metrics = evaluation[model];
 
-                        // Optional: scroll to top or results section
+                            document.getElementById("accuracy-value").textContent =
+                                typeof metrics.accuracy === "number" ? (metrics.accuracy * 100).toFixed(2) + "%" : "N/A";
+
+                            document.getElementById("f1-score-value").textContent =
+                                typeof metrics.f1_score === "number" ? metrics.f1_score.toFixed(2) : "N/A";
+
+                            document.getElementById("precision-value").textContent =
+                                typeof metrics.precision === "number" ? metrics.precision.toFixed(2) : "N/A";
+
+                            document.getElementById("recall-value").textContent =
+                                typeof metrics.recall === "number" ? metrics.recall.toFixed(2) : "N/A";
+
+                            // Clear SHAP and model details
+                            document.getElementById("model-details").innerHTML = "";
+                            document.getElementById("shap-values").innerHTML = "";
+                        };
+
+                        // Trigger the first model to display its metrics
+                        selector.value = models[0];
+                        selector.onchange();
+
+                        document.getElementById("results-container").style.display = "block";
                         document.getElementById("results-container").scrollIntoView({behavior: "smooth"});
                     } else {
                         metricBox.innerHTML = ""; // Clear previous metrics if not available
@@ -692,20 +713,62 @@
                 method: "POST",
                 body: formData
             })
-                .then(res => res.json())
+                .then(res => res.json())  // 👈 This line is key!
                 .then(data => {
                     const msg = document.getElementById("defence-message");
                     if (data.message) {
                         msg.innerHTML = `<span class='text-success fw-bold'>${data.message.join('<br>')}</span>`;
+
+                        // ⏬ Now fetch evaluation results after defences
+                        fetch("/evaluate_models", {
+                            method: "POST"
+                        })
+                            .then(res => res.json())
+                            .then(evalData => {
+                                if (evalData.evaluation && Array.isArray(evalData.evaluation)) {
+                                    const topResult = evalData.evaluation[0];
+                                    document.getElementById("accuracy-value").textContent = (topResult.accuracy * 100).toFixed(2) + "%";
+                                    document.getElementById("f1-score-value").textContent = topResult.f1_score.toFixed(2);
+                                    document.getElementById("precision-value").textContent = topResult.precision.toFixed(2);
+                                    document.getElementById("recall-value").textContent = topResult.recall.toFixed(2);
+
+                                    document.getElementById("results-container").style.display = "block";
+                                    document.getElementById("results-container").scrollIntoView({behavior: "smooth"});
+                                }
+                            });
                     } else {
                         msg.innerHTML = `<span class='text-danger'>${data.error || 'An error occurred while applying defences.'}</span>`;
                     }
                 })
+        });
+
+        // Handle model evaluation after defences
+        document.getElementById("evaluate-models-btn").addEventListener("click", function () {
+            fetch("/evaluate_models", {
+                method: "POST"
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.evaluation && Array.isArray(data.evaluation)) {
+                        const topResult = data.evaluation[0]; // Use the first result (e.g., ensemble on combined dataset)
+
+                        document.getElementById("accuracy-value").textContent = (topResult.accuracy * 100).toFixed(2) + "%";
+                        document.getElementById("f1-score-value").textContent = topResult.f1_score.toFixed(2);
+                        document.getElementById("precision-value").textContent = topResult.precision.toFixed(2);
+                        document.getElementById("recall-value").textContent = topResult.recall.toFixed(2);
+
+                        document.getElementById("results-container").style.display = "block";
+                        document.getElementById("results-container").scrollIntoView({behavior: "smooth"});
+                    } else {
+                        alert("No evaluation data returned.");
+                    }
+                })
                 .catch(err => {
-                    document.getElementById("defence-message").innerHTML =
-                        `<span class='text-danger'>Error: ${err.message}</span>`;
+                    alert("Error running evaluation: " + err.message);
+                    console.error(err);
                 });
         });
+
 
         // Buttons for concept drift & visualisations
         document.getElementById("concept-drift-btn")?.addEventListener("click", function () {
