@@ -92,13 +92,8 @@ def create_line_plot_with_critical_points(df,ax):
     ax.grid(True, linestyle='--', alpha=0.7)
     ax.legend(loc='lower left', fontsize=9)
 
-    #Save figure
-    output_file = "concept_drift_lineplot.png"
-    plt.show()
-    #plt.savefig(output_file, dpi=300, bbox_inches='tight')
-    plt.close()
+    return ax
 
-    print(f"Graph successfully exported to {output_file}")
 
 # 2. Heatmap visualization
 def create_heatmap(df, ax):
