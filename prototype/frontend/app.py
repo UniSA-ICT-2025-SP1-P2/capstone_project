@@ -114,7 +114,7 @@ def upload_file():
     try:
         df = pd.read_csv(filepath)
 
-        #Save the original uploaded dataset to prototype/data/
+        # Save the original uploaded dataset to prototype/data/
         original_data_path = os.path.join(BASE_DIR, "data", "uploaded_dataset.csv")
         df.to_csv(original_data_path, index=False)
         print(f"📁 Original uploaded dataset saved to: {original_data_path}")
@@ -188,140 +188,129 @@ def upload_file():
 def generate_adversarial():
     """Generate adversarial examples using FGSM or PGD attacks"""
     try:
-        # Get attack parameters
         attack_type = request.form.get('attack_type', 'fgsm')
         epsilon = float(request.form.get('epsilon', 0.1))
 
         if attack_type not in ['fgsm', 'pgd']:
             return jsonify({'error': 'Invalid attack type. Choose "fgsm" or "pgd".'}), 400
-
         if epsilon <= 0 or epsilon > 1.0:
             return jsonify({'error': 'Epsilon must be between 0 and 1.0'}), 400
 
-        # Load models and data
+        # Load models and test data
         models = load_models()
         X_test, y_test, label_encoder, feature_names = load_test_data()
         features_to_lock = load_adversarial_features()
 
-        # Only gradient-based models can be used for attacks
         valid_models = ["LogisticRegression", "SVM"]
         available_valid_models = [m for m in valid_models if m in models]
-
         if not available_valid_models:
             return jsonify({'error': 'No gradient-based models available for attack generation.'}), 400
 
         source_model = available_valid_models[0]
-        print(f"Running {attack_type.upper()} attack using {source_model} model, epsilon={epsilon}")
+        print(f"Running {attack_type.upper()} attack using {source_model}, epsilon={epsilon}")
 
-        # Run appropriate attack
+        # Define output path and clear previous file
+        sample_path = os.path.join(OUTPUT_DIR, f"adversarial_samples_{attack_type}_eps_{epsilon}.csv")
+        if os.path.exists(sample_path):
+            os.remove(sample_path)
+            print(f"🧹 Removed old adversarial samples at: {sample_path}")
+
+        # Generate adversarial samples
         if attack_type == 'fgsm':
-            sample_path = os.path.join(OUTPUT_DIR, f"adversarial_samples_fgsm_eps_{epsilon}.csv")
             run_attack_simulation(models, X_test, y_test, [epsilon], features_to_lock, source_model)
-        else:  # pgd
-            sample_path = os.path.join(OUTPUT_DIR, f"adversarial_samples_pgd_eps_{epsilon}.csv")
+        else:
             run_pgd_attack_simulation(models, X_test, y_test, [epsilon], features_to_lock, source_model)
 
-        # Verify the attack generated the expected output file
         if not os.path.exists(sample_path):
-            return jsonify({'error': 'Adversarial samples file not created. Check attack module.'}), 500
+            return jsonify({'error': f'Adversarial samples file not found at {sample_path}'}), 500
 
-        # Load and validate adversarial samples
         adv_df = pd.read_csv(sample_path)
+        print(f"🔍 Successfully generated {len(adv_df)} adversarial samples at epsilon={epsilon}")
+        adv_df['source'] = 'adversarial'
+
         if 'Class' not in adv_df.columns:
-            return jsonify({'error': 'Missing "Class" column in adversarial samples.'}), 500
+            print("Warning: 'Class' column not found in adversarial samples. Adding default class 'Conti'.")
+            adv_df['Class'] = 'Conti'
 
-        # Keep only relevant columns
-        adv_df = adv_df.drop(columns=[col for col in adv_df.columns if col not in feature_names + ['Class']],
-                             errors='ignore')
-
-        # Ensure all required features are present
+        adv_df = adv_df.drop(columns=[col for col in adv_df.columns if col not in feature_names + ['Class', 'Category', 'source']], errors='ignore')
         for f in feature_names:
             if f not in adv_df.columns:
                 adv_df[f] = 0
 
-        adv_df = adv_df[feature_names + ['Class']]
-
-        # Load original uploaded data
-        uploaded_files = os.listdir(app.config['UPLOAD_FOLDER'])
-        if not uploaded_files:
-            return jsonify({'error': 'No uploaded file found for comparison.'}), 400
-
-        original_path = os.path.join(app.config['UPLOAD_FOLDER'], uploaded_files[0])
+        # Load the full original uploaded dataset
+        original_path = os.path.join(BASE_DIR, "data", "uploaded_dataset.csv")
+        if not os.path.exists(original_path):
+            return jsonify({'error': 'Uploaded dataset not found at expected location.'}), 400
         original_df = pd.read_csv(original_path)
+        original_df["source"] = "original"
 
-        # Map categories if needed
-        if 'Category' in original_df.columns and 'category_name' not in original_df.columns:
-            try:
-                original_df["category_name"] = original_df["Category"].apply(find_category_name)
-            except Exception as e:
-                print(f"Warning: Could not map categories: {str(e)}")
-                return jsonify({'error': 'Error mapping categories in original data.'}), 500
-
-        # Replace generic "Malware" with actual category
-        if 'Class' in original_df.columns:
-            original_df["Class"] = original_df.apply(
-                lambda row: row["category_name"] if row["Class"] == "Malware" else row["Class"],
-                axis=1
-            )
+        # Harmonize label column
+        # Fix label column from uploaded data
+        if "category_name" in original_df.columns:
+            original_df["label"] = original_df["category_name"]
+        elif "Category" in original_df.columns:
+            original_df["label"] = original_df["Category"].apply(find_category_name)
+        elif "Class" in original_df.columns:
+            original_df["label"] = original_df["Class"]
         else:
-            # Create Class column if it doesn't exist
-            original_df["Class"] = original_df["category_name"] if "category_name" in original_df.columns else "Unknown"
+            original_df["label"] = "Unknown"
 
-        # Ensure original data has same features as adversarial data
         for f in feature_names:
             if f not in original_df.columns:
                 original_df[f] = 0
+        original_df = original_df[feature_names + ['label', 'source']]
 
-        original_df = original_df[feature_names + ['Class']]
+        # Prepare adversarial data
+        adv_df = adv_df.rename(columns={"Class": "label"})
+        if "Category" in adv_df.columns:
+            adv_df["label"] = adv_df["Category"].apply(find_category_name)
 
-        # Merge original and adversarial datasets
+        adv_df = adv_df[feature_names + ['label', 'source']]
+
+        original_df.reset_index(drop=True, inplace=True)
+        adv_df.reset_index(drop=True, inplace=True)
         combined_df = pd.concat([original_df, adv_df], ignore_index=True)
 
-        # Final fix: map 'Malware' → actual category if any rows slipped through
-        combined_df["Class"] = combined_df["Class"].replace("Malware", "Conti")  # fallback only
+        print(f"🔢 Combined dataset contains {len(combined_df)} rows ({len(original_df)} original + {len(adv_df)} adversarial)")
 
-        # Encode labels and predict using the model
         X_combined = combined_df[feature_names].astype(float)
-        y_combined = label_encoder.transform(combined_df["Class"])
+        try:
+            y_combined = label_encoder.transform(combined_df["label"])
+        except ValueError as e:
+            print(f"Warning: Label encoding error: {str(e)}")
+            unknown_labels = set(combined_df["label"]) - set(label_encoder.classes_)
+            if unknown_labels:
+                print(f"Extending label encoder with: {unknown_labels}")
+                label_encoder.classes_ = np.concatenate([label_encoder.classes_, list(unknown_labels)])
+            y_combined = label_encoder.transform(combined_df["label"])
 
-        # Rename column for consistency
-        combined_df = combined_df.rename(columns={"Class": "label"})
-
-        # Save merged dataset
         combined_path = os.path.join(OUTPUT_DIR, f"combined_dataset_with_adversarial_eps_{epsilon}.csv")
-        combined_df.to_csv(combined_path, index=False)
-
-        # Also save as latest combined dataset
         latest_merged_path = os.path.join(OUTPUT_DIR, "latest_combined_dataset.csv")
+        combined_df.drop(columns=["source"], inplace=True, errors="ignore")
+        combined_df.to_csv(combined_path, index=False)
         combined_df.to_csv(latest_merged_path, index=False)
-        print(f"📝 Also saved merged dataset as: {latest_merged_path}")
 
-        # Evaluate all models on the combined dataset
+        print(f"📝 Saved merged dataset as: {latest_merged_path}")
+
         model_evaluations = {}
-
         for model_name, model in models.items():
             try:
                 y_pred = model.predict(X_combined)
                 pred_col = f"{model_name}_prediction"
                 combined_df[pred_col] = label_encoder.inverse_transform(y_pred)
-
+                accuracy = float((y_pred == y_combined).mean())
                 report = classification_report(y_combined, y_pred, output_dict=True, zero_division=0)
                 model_evaluations[model_name] = {
-                    'accuracy': float((y_pred == y_combined).mean()),
+                    'accuracy': accuracy,
                     'f1_score': float(report['weighted avg']['f1-score']),
                     'precision': float(report['weighted avg']['precision']),
                     'recall': float(report['weighted avg']['recall'])
                 }
-
                 print(f"✅ Evaluated {model_name} against adversarial examples")
             except Exception as e:
                 print(f"❌ Failed to evaluate {model_name}: {str(e)}")
                 model_evaluations[model_name] = {'error': str(e)}
 
-        # Save updated predictions with all model outputs
-        combined_df.to_csv(latest_merged_path, index=False)
-
-        # Return metrics for all models
         return jsonify({
             'message': f'{attack_type.upper()} adversarial attack completed successfully.',
             'evaluation': model_evaluations,
@@ -331,7 +320,6 @@ def generate_adversarial():
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/apply_defences', methods=['POST'])
 def apply_defences():
