@@ -2620,7 +2620,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 1,10,Ako,Refroso
 12,5,Shade,Emotet
 8,2,Pysa,Benign
-15,2,Zeus,Benign
+15,5,Zeus,Emotet
 9,5,Reconyc,Emotet
 11,5,Scar,Emotet
 10,5,Refroso,Emotet

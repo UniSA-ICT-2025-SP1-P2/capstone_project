@@ -4,6 +4,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score
 import joblib
+import sys
+
+# Add the src directory to the Python path
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))               # /src/defences
+SRC_DIR = os.path.abspath(os.path.join(CURRENT_DIR, '..'))             # /src
+sys.path.append(SRC_DIR)
+
 from predict import predict
 
 
@@ -66,11 +73,12 @@ def run_concept_drift(data_path, model_type, chunk_size, threshold, results_dir)
 # === CLI fallback ===
 if __name__ == "__main__":
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))                          # /src/defences/
-    DEFENCE_PROTOTYPE_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))         # /src/
-    PROTOTYPE_DIR = os.path.abspath(os.path.join(DEFENCE_PROTOTYPE_DIR, '..'))    # /defence_prototype/
-
-    data_path = os.path.join(PROTOTYPE_DIR, 'data', 'uploaded_dataset.csv')
-    results_dir = os.path.join(DEFENCE_PROTOTYPE_DIR, 'results')
+    SRC_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))                        # /src/
+    PROTOTYPE_DIR = os.path.abspath(os.path.join(SRC_DIR, '..'))                   # /defence_prototype/
+    CAPSTONE_ROOT_DIR = os.path.abspath(os.path.join(PROTOTYPE_DIR, '..'))         # /capstone_project/
+    data_path = os.path.join(PROTOTYPE_DIR, '..', 'data', 'uploaded_dataset.csv')
+    data_path = os.path.abspath(data_path) 
+    results_dir = os.path.join(PROTOTYPE_DIR, 'results')
 
     run_concept_drift(
         data_path=data_path,
@@ -79,3 +87,4 @@ if __name__ == "__main__":
         threshold=0.7,
         results_dir=results_dir
     )
+
