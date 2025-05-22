@@ -30,7 +30,7 @@ def load_csv_data():
 
     """Load necessary resources for visualisation"""
     fgsm= os.path.join(DATA_DIR, "attack_results_fgsm_summary.csv")
-    pgd = os.path.join(DATA_DIR, "attack_results_fgsm_summary.csv")
+    pgd = os.path.join(DATA_DIR, "attack_results_pgd_summary.csv")
 
     try:
         # Read the CSV file into a pandas DataFrame
@@ -45,200 +45,221 @@ def load_csv_data():
         print(f"Error loading CSV data: {e}")
         return None
 
+#Version 2
 def create_model_results_table():
     """
-    Create a visualization table of model evaluation metrics.
-    
-    Parameters:
-    -----------
-    model_results : pandas DataFrame
-        DataFrame containing precision, recall, f1-score, accuracy, and training_time
+    Create a visualization table of model evaluation metrics and save to a single PNG file.
     
     Returns:
     --------
-    PIL.Image.Image
-        PNG image of the visualization table
+    str
+        Path to the saved PNG file
     """
-    # Create a copy to avoid modifying the original dataframe
-    df_fgsm1, df_pgd1 = load_csv_data()
-
-    #Create a visualisation to show FGSM attack results after PGD
-     # Set up the style
+    # Load data
+    df_fgsm, df_pgd = load_csv_data()
+    
+    # Set up the style
     sns.set_style("whitegrid")
     
-    # Create a figure for the table at the top
-    fig = plt.figure(figsize=(14, 14))  # Increased height to accommodate table
+    # Create a single figure to contain all visualizations
+    fig = plt.figure(figsize=(16, 20))
     
-    # Create a layout with a table at top and 2x2 subplots below
-    gs = fig.add_gridspec(5, 2, height_ratios=[1, 2, 2, 2, 2])
-    
-    # Create a table spanning the top row
-    ax_table = fig.add_subplot(gs[0, :])
-    ax_table.axis('off')  # Hide axes for table
-    
-    # Format the data for the table - round numeric values
-    table_data = df_fgsm1.copy()
-    for col in ['Accuracy', 'Precision', 'Recall', 'F1-score']:
-        table_data[col] = table_data[col].round(3)
-    
-    # Create the table
-    table = ax_table.table(
-        cellText=table_data.values,
-        colLabels=table_data.columns,
-        cellLoc='center',
-        loc='center',
-        bbox=[0, 0, 1, 1]
-    )
-    
-    # Style the table
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    table.scale(1, 1.5)  # Adjust table size
-    
-    # Add title above the table
-    ax_table.set_title('FGSM Attack Results Summary', fontsize=16, pad=20)
+    # Define a grid layout for all components
+    gs = fig.add_gridspec(4, 2, height_ratios=[1, 2, 1, 2])
     
     # Define metrics
     metrics = ['Accuracy', 'Precision', 'Recall', 'F1-score']
-
-    # Create another visualization: combined line plot for LogisticRegression metrics with table
-    fig_line = plt.figure(figsize=(12, 10))  # Increased height for table
     
-    # Create a layout with table at top and line chart below
-    gs_line = fig_line.add_gridspec(2, 1, height_ratios=[1, 3])
+    # 1. FGSM Summary Table (top-left)
+    ax_fgsm_table = fig.add_subplot(gs[0, 0])
+    ax_fgsm_table.axis('off')
     
-    # Create a table for LogisticRegression results
-    ax_lr_table = fig_line.add_subplot(gs_line[0, 0])
-    ax_lr_table.axis('off')  # Hide axes for table
+    # Format the data for the FGSM table
+    fgsm_table_data = df_fgsm.copy()
+    for col in metrics:
+        fgsm_table_data[col] = fgsm_table_data[col].round(3)
     
-    # Filter data for just LogisticRegression
-    lr_df = df_fgsm1[df_fgsm1['Classifier'] == 'LogisticRegression']
+    # Create the FGSM table - show only first few rows if table is large
+    sample_rows = 5  # Adjust as needed
+    if len(fgsm_table_data) > sample_rows:
+        table_display = fgsm_table_data.iloc[:sample_rows].values
+        footnote = "(Showing first 5 rows)"
+    else:
+        table_display = fgsm_table_data.values
+        footnote = ""
     
-    # Format the data for the table - round numeric values
-    lr_table_data = lr_df.copy()
-    lr_table_data = lr_table_data.drop(columns=['Classifier'])  # Remove redundant column
-    for col in ['Accuracy', 'Precision', 'Recall', 'F1-score']:
-        lr_table_data[col] = lr_table_data[col].round(3)
-    
-    # Create the table
-    lr_table = ax_lr_table.table(
-        cellText=lr_table_data.values,
-        colLabels=lr_table_data.columns,
+    fgsm_table = ax_fgsm_table.table(
+        cellText=table_display,
+        colLabels=fgsm_table_data.columns,
         cellLoc='center',
         loc='center',
         bbox=[0, 0, 1, 1]
     )
     
-    # Style the table
-    lr_table.auto_set_font_size(False)
-    lr_table.set_fontsize(10)
-    lr_table.scale(1, 1.5)  # Adjust table size
+    # Style the FGSM table
+    fgsm_table.auto_set_font_size(False)
+    fgsm_table.set_fontsize(9)
+    fgsm_table.scale(1, 1.5)
     
-    # Add title above the table
-    ax_lr_table.set_title('LogisticRegression Results Summary - FGSM', fontsize=16, pad=20)
+    ax_fgsm_table.set_title(f'FGSM Attack Results Summary {footnote}', fontsize=14, pad=20)
     
-    # Create line chart below the table
-    ax_line = fig_line.add_subplot(gs_line[1, 0])
+    # 2. PGD Summary Table (top-right)
+    ax_pgd_table = fig.add_subplot(gs[0, 1])
+    ax_pgd_table.axis('off')
+    
+    # Format the data for the PGD table
+    pgd_table_data = df_pgd.copy()
+    for col in metrics:
+        pgd_table_data[col] = pgd_table_data[col].round(3)
+    
+    # Create the PGD table - show only first few rows if table is large
+    if len(pgd_table_data) > sample_rows:
+        table_display = pgd_table_data.iloc[:sample_rows].values
+        footnote = "(Showing first 5 rows)"
+    else:
+        table_display = pgd_table_data.values
+        footnote = ""
+    
+    pgd_table = ax_pgd_table.table(
+        cellText=table_display,
+        colLabels=pgd_table_data.columns,
+        cellLoc='center',
+        loc='center',
+        bbox=[0, 0, 1, 1]
+    )
+    
+    # Style the PGD table
+    pgd_table.auto_set_font_size(False)
+    pgd_table.set_fontsize(9)
+    pgd_table.scale(1, 1.5)
+    
+    ax_pgd_table.set_title(f'PGD Attack Results Summary {footnote}', fontsize=14, pad=20)
+    
+    # 3. LogisticRegression FGSM Results (second row, left)
+    # Filter data for LogisticRegression
+    lr_fgsm_df = df_fgsm[df_fgsm['Classifier'] == 'LogisticRegression']
+    
+    # Line chart for LogisticRegression FGSM
+    ax_lr_fgsm = fig.add_subplot(gs[1, 0])
     
     for metric in metrics:
-        ax_line.plot(lr_df['Epsilon'], lr_df[metric], marker='o', linewidth=2, label=metric)
-
-    ax_line.set_title('LogisticRegression Performance Metrics vs Epsilon - FGSM', fontsize=16)
-    ax_line.set_xlabel('Epsilon', fontsize=14)
-    ax_line.set_ylabel('Score', fontsize=14)
-    ax_line.grid(True, linestyle='--', alpha=0.7)
-    ax_line.legend(fontsize=12)
-    ax_line.set_xticks(lr_df['Epsilon'])
-    ax_line.set_ylim(-0.05, 1.05)  # Set y-axis limits
-
-    #Create a second visualisation to show PGD attach results after LogisticRegression
-     # Set up the style
-    sns.set_style("whitegrid")
+        ax_lr_fgsm.plot(lr_fgsm_df['Epsilon'], lr_fgsm_df[metric], marker='o', linewidth=2, label=metric)
     
-    # Create a figure for the table at the top
-    fig = plt.figure(figsize=(14, 14))  # Increased height to accommodate table
+    ax_lr_fgsm.set_title('LogisticRegression vs Epsilon - FGSM', fontsize=14)
+    ax_lr_fgsm.set_xlabel('Epsilon', fontsize=12)
+    ax_lr_fgsm.set_ylabel('Score', fontsize=12)
+    ax_lr_fgsm.grid(True, linestyle='--', alpha=0.7)
+    ax_lr_fgsm.legend(fontsize=10)
+    ax_lr_fgsm.set_xticks(lr_fgsm_df['Epsilon'])
+    ax_lr_fgsm.set_ylim(-0.05, 1.05)
     
-    # Create a layout with a table at top and 2x2 subplots below
-    gs = fig.add_gridspec(5, 2, height_ratios=[1, 2, 2, 2, 2])
+    # 4. LogisticRegression PGD Results (second row, right)
+    # Filter data for LogisticRegression
+    lr_pgd_df = df_pgd[df_pgd['Classifier'] == 'LogisticRegression']
     
-    # Create a table spanning the top row
-    ax_table = fig.add_subplot(gs[0, :])
-    ax_table.axis('off')  # Hide axes for table
-    
-    # Format the data for the table - round numeric values
-    table_data = df_pgd.copy()
-    for col in ['Accuracy', 'Precision', 'Recall', 'F1-score']:
-        table_data[col] = table_data[col].round(3)
-    
-    # Create the table
-    table = ax_table.table(
-        cellText=table_data.values,
-        colLabels=table_data.columns,
-        cellLoc='center',
-        loc='center',
-        bbox=[0, 0, 1, 1]
-    )
-    
-    # Style the table
-    table.auto_set_font_size(False)
-    table.set_fontsize(10)
-    table.scale(1, 1.5)  # Adjust table size
-    
-    # Add title above the table
-    ax_table.set_title('PGD Attack Results Summary', fontsize=16, pad=20)
-    
-    # Define metrics
-    metrics = ['Accuracy', 'Precision', 'Recall', 'F1-score']
-
-    # Create another visualization: combined line plot for LogisticRegression metrics with table
-    fig_line = plt.figure(figsize=(12, 10))  # Increased height for table
-    
-    # Create a layout with table at top and line chart below
-    gs_line = fig_line.add_gridspec(2, 1, height_ratios=[1, 3])
-    
-    # Create a table for LogisticRegression results
-    ax_lr_table = fig_line.add_subplot(gs_line[0, 0])
-    ax_lr_table.axis('off')  # Hide axes for table
-    
-    # Filter data for just LogisticRegression
-    lr_df = df_pgd[df_pgd['Classifier'] == 'LogisticRegression']
-    
-    # Format the data for the table - round numeric values
-    lr_table_data = lr_df.copy()
-    lr_table_data = lr_table_data.drop(columns=['Classifier'])  # Remove redundant column
-    for col in ['Accuracy', 'Precision', 'Recall', 'F1-score']:
-        lr_table_data[col] = lr_table_data[col].round(3)
-    
-    # Create the table
-    lr_table = ax_lr_table.table(
-        cellText=lr_table_data.values,
-        colLabels=lr_table_data.columns,
-        cellLoc='center',
-        loc='center',
-        bbox=[0, 0, 1, 1]
-    )
-    
-    # Style the table
-    lr_table.auto_set_font_size(False)
-    lr_table.set_fontsize(10)
-    lr_table.scale(1, 1.5)  # Adjust table size
-    
-    # Add title above the table
-    ax_lr_table.set_title('LogisticRegression Results Summary - PGD', fontsize=16, pad=20)
-    
-    # Create line chart below the table
-    ax_line = fig_line.add_subplot(gs_line[1, 0])
+    # Line chart for LogisticRegression PGD
+    ax_lr_pgd = fig.add_subplot(gs[1, 1])
     
     for metric in metrics:
-        ax_line.plot(lr_df['Epsilon'], lr_df[metric], marker='o', linewidth=2, label=metric)
-
-    ax_line.set_title('LogisticRegression Performance Metrics vs Epsilon - PGD', fontsize=16)
-    ax_line.set_xlabel('Epsilon', fontsize=14)
-    ax_line.set_ylabel('Score', fontsize=14)
-    ax_line.grid(True, linestyle='--', alpha=0.7)
-    ax_line.legend(fontsize=12)
-    ax_line.set_xticks(lr_df['Epsilon'])
-    ax_line.set_ylim(-0.05, 1.05)  # Set y-axis limits
+        ax_lr_pgd.plot(lr_pgd_df['Epsilon'], lr_pgd_df[metric], marker='o', linewidth=2, label=metric)
+    
+    ax_lr_pgd.set_title('LogisticRegression vs Epsilon - PGD', fontsize=14)
+    ax_lr_pgd.set_xlabel('Epsilon', fontsize=12)
+    ax_lr_pgd.set_ylabel('Score', fontsize=12)
+    ax_lr_pgd.grid(True, linestyle='--', alpha=0.7)
+    ax_lr_pgd.legend(fontsize=10)
+    ax_lr_pgd.set_xticks(lr_pgd_df['Epsilon'])
+    ax_lr_pgd.set_ylim(-0.05, 1.05)
+    
+    # 5. LogisticRegression FGSM Table (third row, left)
+    ax_lr_fgsm_table = fig.add_subplot(gs[2, 0])
+    ax_lr_fgsm_table.axis('off')
+    
+    # Format the data for the table
+    lr_fgsm_table_data = lr_fgsm_df.copy()
+    lr_fgsm_table_data = lr_fgsm_table_data.drop(columns=['Classifier'])  # Remove redundant column
+    for col in metrics:
+        lr_fgsm_table_data[col] = lr_fgsm_table_data[col].round(3)
+    
+    # Create the table
+    lr_fgsm_detail_table = ax_lr_fgsm_table.table(
+        cellText=lr_fgsm_table_data.values,
+        colLabels=lr_fgsm_table_data.columns,
+        cellLoc='center',
+        loc='center',
+        bbox=[0, 0, 1, 1]
+    )
+    
+    # Style the table
+    lr_fgsm_detail_table.auto_set_font_size(False)
+    lr_fgsm_detail_table.set_fontsize(10)
+    lr_fgsm_detail_table.scale(1, 1.5)
+    
+    ax_lr_fgsm_table.set_title('LogisticRegression Results - FGSM', fontsize=14, pad=20)
+    
+    # 6. LogisticRegression PGD Table (third row, right)
+    ax_lr_pgd_table = fig.add_subplot(gs[2, 1])
+    ax_lr_pgd_table.axis('off')
+    
+    # Format the data for the table
+    lr_pgd_table_data = lr_pgd_df.copy()
+    lr_pgd_table_data = lr_pgd_table_data.drop(columns=['Classifier'])  # Remove redundant column
+    for col in metrics:
+        lr_pgd_table_data[col] = lr_pgd_table_data[col].round(3)
+    
+    # Create the table
+    lr_pgd_detail_table = ax_lr_pgd_table.table(
+        cellText=lr_pgd_table_data.values,
+        colLabels=lr_pgd_table_data.columns,
+        cellLoc='center',
+        loc='center',
+        bbox=[0, 0, 1, 1]
+    )
+    
+    # Style the table
+    lr_pgd_detail_table.auto_set_font_size(False)
+    lr_pgd_detail_table.set_fontsize(10)
+    lr_pgd_detail_table.scale(1, 1.5)
+    
+    ax_lr_pgd_table.set_title('LogisticRegression Results - PGD', fontsize=14, pad=20)
+    
+    # 7. Comparison of all classifiers - FGSM (bottom left)
+    ax_all_fgsm = fig.add_subplot(gs[3, 0])
+    
+    # For each classifier, plot accuracy against epsilon
+    for classifier in df_fgsm['Classifier'].unique():
+        clf_data = df_fgsm[df_fgsm['Classifier'] == classifier]
+        ax_all_fgsm.plot(clf_data['Epsilon'], clf_data['Accuracy'], marker='o', linewidth=2, label=classifier)
+    
+    ax_all_fgsm.set_title('All Classifiers Accuracy vs Epsilon - FGSM', fontsize=14)
+    ax_all_fgsm.set_xlabel('Epsilon', fontsize=12)
+    ax_all_fgsm.set_ylabel('Accuracy', fontsize=12)
+    ax_all_fgsm.grid(True, linestyle='--', alpha=0.7)
+    ax_all_fgsm.legend(fontsize=10)
+    ax_all_fgsm.set_xticks(clf_data['Epsilon'])
+    ax_all_fgsm.set_ylim(-0.05, 1.05)
+    
+    # 8. Comparison of all classifiers - PGD (bottom right)
+    ax_all_pgd = fig.add_subplot(gs[3, 1])
+    
+    # For each classifier, plot accuracy against epsilon
+    for classifier in df_pgd['Classifier'].unique():
+        clf_data = df_pgd[df_pgd['Classifier'] == classifier]
+        ax_all_pgd.plot(clf_data['Epsilon'], clf_data['Accuracy'], marker='o', linewidth=2, label=classifier)
+    
+    ax_all_pgd.set_title('All Classifiers Accuracy vs Epsilon - PGD', fontsize=14)
+    ax_all_pgd.set_xlabel('Epsilon', fontsize=12)
+    ax_all_pgd.set_ylabel('Accuracy', fontsize=12)
+    ax_all_pgd.grid(True, linestyle='--', alpha=0.7)
+    ax_all_pgd.legend(fontsize=10)
+    ax_all_pgd.set_xticks(clf_data['Epsilon'])
+    ax_all_pgd.set_ylim(-0.05, 1.05)
+    
+    # Add an overall title
+    plt.suptitle('Comprehensive Model Results for FGSM and PGD Attacks', fontsize=18, y=0.99)
+    
+    # Adjust layout
+    plt.tight_layout(rect=[0, 0, 1, 0.97])
 
     # Save and show
     filename = 'model_results.png'
