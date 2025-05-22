@@ -60,7 +60,7 @@ def run_adversarial_training(data_dir, model_dir, epochs=10, lr=0.001):
     os.makedirs(model_dir, exist_ok=True)
 
     # Load and clean datasets
-    clean_path = os.path.join(data_dir, 'train_label.csv')
+    clean_path = os.path.join(data_dir, 'uploaded_dataset.csv')
     fgsm_path = os.path.join(data_dir, 'adversarial_fgsm.csv')
     pgd_path = os.path.join(data_dir, 'adversarial_pgd.csv')
 

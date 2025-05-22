@@ -72,7 +72,7 @@ if __name__ == "__main__":
     DEFENCE_PROTOTYPE_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))
     PROTOTYPE_DIR = os.path.abspath(os.path.join(DEFENCE_PROTOTYPE_DIR, '..'))
 
-    DATA_PATH = os.path.join(PROTOTYPE_DIR, 'data', 'train_label.csv')
+    DATA_PATH = os.path.join(PROTOTYPE_DIR, 'data', 'uploaded_dataset.csv')
     MODEL_DIR = os.path.join(DEFENCE_PROTOTYPE_DIR, 'models')
 
     train_models(DATA_PATH, MODEL_DIR)

@@ -25,8 +25,8 @@ if __name__ == "__main__":
     PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, '..', '..', '..'))  # capstone_project/
     DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
 
-    input_path = os.path.join(DATA_DIR, 'test_label.csv')
-    output_path = os.path.join(DATA_DIR, 'test_label_smoothed.csv')
+    input_path = os.path.join(DATA_DIR, 'uploaded_dataset.csv')
+    output_path = os.path.join(DATA_DIR, 'uploaded_dataset_smoothed.csv')
 
     apply_feature_smoothing_path(
         input_path=input_path,

@@ -69,7 +69,7 @@ if __name__ == "__main__":
     DEFENCE_PROTOTYPE_DIR = os.path.abspath(os.path.join(BASE_DIR, '..'))         # /src/
     PROTOTYPE_DIR = os.path.abspath(os.path.join(DEFENCE_PROTOTYPE_DIR, '..'))    # /defence_prototype/
 
-    data_path = os.path.join(PROTOTYPE_DIR, 'data', 'test_label.csv')
+    data_path = os.path.join(PROTOTYPE_DIR, 'data', 'uploaded_dataset.csv')
     results_dir = os.path.join(DEFENCE_PROTOTYPE_DIR, 'results')
 
     run_concept_drift(

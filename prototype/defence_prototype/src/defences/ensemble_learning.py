@@ -8,7 +8,7 @@ from sklearn.ensemble import RandomForestClassifier
 import os
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-data_path = os.path.join(script_dir, '../../../data/validation_label.csv')
+data_path = os.path.join(script_dir, '../../../data/uploaded_dataset.csv')
 model_dir = os.path.join(script_dir, '../../models')
 
 class SimpleNN(nn.Module):
