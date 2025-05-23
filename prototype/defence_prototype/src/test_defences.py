@@ -1,6 +1,6 @@
 import os
 from defences import feature_smoothing, concept_drift
-from defences import adversarial_training  # Ensure this module has a callable function
+from defences import adversarial_training  
 
 # === Define project paths ===
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) 
