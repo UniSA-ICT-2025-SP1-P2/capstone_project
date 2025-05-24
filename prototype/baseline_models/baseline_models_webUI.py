@@ -47,7 +47,11 @@ def find_category_name(file_name):
 def extract_unique_file_id(file_name):
     return file_name.rsplit('-', 1)[0]
 
+
 def run_all_models(df, selected_models=None, progress_callback=None):
+    """
+    Train baseline classifiers on the provided DataFrame and save models, SHAP charts, and datasets.
+    """
     if selected_models is None:
         selected_models = ['RandomForest', 'KNN', 'LogisticRegression', 'DecisionTree', 'SVM']
 
@@ -55,16 +59,20 @@ def run_all_models(df, selected_models=None, progress_callback=None):
         if progress_callback:
             progress_callback(msg)
 
+    # Extract category fields
     df["category"] = df["Category"].apply(find_category)
     df["category_name"] = df["Category"].apply(find_category_name)
     df["unique_file_id"] = df["Category"].apply(extract_unique_file_id)
 
-    # Label encoding:
+    # Label encoding for categories
     le_catname = LabelEncoder()
     df['category_name_encoded'] = le_catname.fit_transform(df['category_name'])
-    df['group_id'] = df.apply(lambda row: row['unique_file_id'] if row['Class'] != 'Benign' else f"benign_{row.name}", axis=1)
+    df['group_id'] = df.apply(
+        lambda row: row['unique_file_id'] if row['Class'] != 'Benign' else f"benign_{row.name}",
+        axis=1
+    )
 
-    # Splits:
+    # Create train/validation/test splits using group shuffle
     gss = GroupShuffleSplit(n_splits=1, test_size=0.35, random_state=42)
     train_idx, temp_idx = next(gss.split(df, groups=df['group_id']))
     train_df, temp_df = df.iloc[train_idx], df.iloc[temp_idx]
@@ -86,6 +94,7 @@ def run_all_models(df, selected_models=None, progress_callback=None):
     X_val, y_val = get_xy(validation_df)
     X_test, y_test = get_xy(test_df)
 
+    # Define classifiers and parameter grids
     classifiers = {
         'RandomForest': (RandomForestClassifier(), False),
         'KNN': (KNeighborsClassifier(), True),
@@ -107,15 +116,18 @@ def run_all_models(df, selected_models=None, progress_callback=None):
         'SVM': { 'C': [0.1, 0.5, 1], 'kernel': ['rbf'] }
     }
 
+    # Ensure directories exist
     os.makedirs(MODEL_DIR, exist_ok=True)
     os.makedirs(SHAP_DIR, exist_ok=True)
     os.makedirs(BASELINE_DATA_DIR, exist_ok=True)
 
+    # Prepare containers
     results = {}
     shap_features_list = []
     metrics_list = []
     conti_encoded = le_catname.transform(["Conti"])[0]
 
+    # Train each selected model
     for clf_name in selected_models:
         clf_obj, scale_required = classifiers[clf_name]
         update_progress(f"Starting training for {clf_name}...")
@@ -123,17 +135,21 @@ def run_all_models(df, selected_models=None, progress_callback=None):
         pipeline = Pipeline([('scaler', StandardScaler()), ('clf', clf_obj)]) if scale_required else clf_obj
 
         if clf_name in param_grids:
-            grid = {f"clf__{k}" if scale_required else k: v for k, v in param_grids[clf_name].items()}
-            search = GridSearchCV(pipeline, grid, cv=GroupKFold(n_splits=5), scoring='accuracy', n_jobs=-1)
+            grid = {f"clf__{k}" if scale_required else k: v for k, v in param_grids[clf_name].items()}  
+            search = GridSearchCV(
+                pipeline, grid, cv=GroupKFold(n_splits=5), scoring='accuracy', n_jobs=-1
+            )
             search.fit(X_train, y_train, groups=train_df['group_id'])
             model = search.best_estimator_
             update_progress(f"Completed GridSearch for {clf_name}.")
         else:
             model = pipeline.fit(X_train, y_train) if scale_required else clf_obj.fit(X_train, y_train)
 
+        # Save the trained model
         model_path = os.path.join(MODEL_DIR, f"{clf_name}_model.pkl")
         joblib.dump(model, model_path)
 
+        # Evaluate on test set and collect metrics
         y_pred = model.predict(X_test)
         report = classification_report(y_test, y_pred, output_dict=True)
         for label, scores in report.items():
@@ -142,6 +158,7 @@ def run_all_models(df, selected_models=None, progress_callback=None):
 
         model_result = {"model_path": model_path, "report": report}
 
+        # Generate SHAP explanations
         try:
             model_for_shap = model.named_steps['clf'] if scale_required else model
             explainer = shap.Explainer(model_for_shap, X_train)
@@ -167,12 +184,25 @@ def run_all_models(df, selected_models=None, progress_callback=None):
 
         results[clf_name] = model_result
 
-    pd.DataFrame(metrics_list).to_excel(os.path.join(BASELINE_DATA_DIR, "Classifier_Results.xlsx"), sheet_name="Metrics", index=False)
-    pd.DataFrame(shap_features_list).to_excel(os.path.join(BASELINE_DATA_DIR, "Classifier_Results.xlsx"), sheet_name="SHAP_Features", index=False)
+    # Save summaries and datasets
+    pd.DataFrame(metrics_list).to_excel(
+        os.path.join(BASELINE_DATA_DIR, "Classifier_Results.xlsx"),
+        sheet_name="Metrics", index=False
+    )
+    pd.DataFrame(shap_features_list).to_excel(
+        os.path.join(BASELINE_DATA_DIR, "Classifier_Results.xlsx"),
+        sheet_name="SHAP_Features", index=False
+    )
+
     train_df.to_csv(os.path.join(BASELINE_DATA_DIR, "Train_Dataset.csv"), index=False)
     validation_df.to_csv(os.path.join(BASELINE_DATA_DIR, "Validation_Dataset.csv"), index=False)
+    # Add 'label' column so downstream code can read category_name
+    test_df["label"] = test_df["category_name"]
     test_df.to_csv(os.path.join(BASELINE_DATA_DIR, "Test_Dataset.csv"), index=False)
-    pd.DataFrame(ADVERSARIAL_FEATURES, columns=["Feature"]).to_csv(os.path.join(BASELINE_DATA_DIR, "Adversarial_Features.csv"), index=False)
+
+    pd.DataFrame(ADVERSARIAL_FEATURES, columns=["Feature"]).to_csv(
+        os.path.join(BASELINE_DATA_DIR, "Adversarial_Features.csv"), index=False
+    )
     joblib.dump(le_catname, os.path.join(MODEL_DIR, "label_encoder.pkl"))
     joblib.dump(X_train.columns.tolist(), os.path.join(MODEL_DIR, "feature_names.pkl"))
 
@@ -183,3 +213,39 @@ def run_all_models(df, selected_models=None, progress_callback=None):
         "adversarial_features": ADVERSARIAL_FEATURES,
         "results": results
     }
+
+def evaluate_models(df, selected_models=None, progress_callback=None):
+    """
+    Load saved models and evaluate them on a new DataFrame (e.g., adversarial samples).
+    Returns a dict of classification reports for each model.
+    """
+    if selected_models is None:
+        selected_models = ['RandomForest', 'KNN', 'LogisticRegression', 'DecisionTree', 'SVM']
+
+    def update_progress(msg):
+        if progress_callback:
+            progress_callback(msg)
+
+    # Prepare DataFrame for evaluation
+    df["category_name"] = df["Category"].apply(find_category_name)
+    le_catname = joblib.load(os.path.join(MODEL_DIR, "label_encoder.pkl"))
+    df["category_name_encoded"] = le_catname.transform(df["category_name"])
+
+    feature_names = joblib.load(os.path.join(MODEL_DIR, "feature_names.pkl"))
+    X_eval = df[feature_names]
+    y_eval = df["category_name_encoded"]
+
+    results = {}
+    for clf_name in selected_models:
+        model_path = os.path.join(MODEL_DIR, f"{clf_name}_model.pkl")
+        if not os.path.exists(model_path):
+            logging.warning(f"Model not found for {clf_name} at {model_path}")
+            continue
+        update_progress(f"Evaluating model {clf_name}...")
+        model = joblib.load(model_path)
+        y_pred = model.predict(X_eval)
+        report = classification_report(y_eval, y_pred, output_dict=True)
+        results[clf_name] = report
+        update_progress(f"Completed evaluation for {clf_name}.")
+
+    return results

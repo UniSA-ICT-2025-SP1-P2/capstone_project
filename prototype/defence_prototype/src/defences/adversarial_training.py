@@ -59,32 +59,38 @@ def fix_labels(df, original_path):
 def run_adversarial_training(data_dir, model_dir, epochs=10, lr=0.001):
     os.makedirs(model_dir, exist_ok=True)
 
-    # Load and clean datasets
-    clean_path = os.path.join(data_dir, 'train_label.csv')
+    clean_path = os.path.join(data_dir, 'uploaded_dataset.csv')
     fgsm_path = os.path.join(data_dir, 'adversarial_fgsm.csv')
     pgd_path = os.path.join(data_dir, 'adversarial_pgd.csv')
 
+    # Load and clean datasets
     df_clean = pd.read_csv(clean_path)
     df_clean = fix_labels(df_clean, clean_path)
 
-    df_fgsm = pd.read_csv(fgsm_path)
-    df_fgsm = fix_labels(df_fgsm, fgsm_path)
+    dfs = [df_clean]
+    labels = []
 
-    df_pgd = pd.read_csv(pgd_path)
-    df_pgd = fix_labels(df_pgd, pgd_path)
+    if os.path.exists(fgsm_path):
+        df_fgsm = pd.read_csv(fgsm_path)
+        df_fgsm = fix_labels(df_fgsm, fgsm_path)
+        dfs.append(df_fgsm)
+
+    if os.path.exists(pgd_path):
+        df_pgd = pd.read_csv(pgd_path)
+        df_pgd = fix_labels(df_pgd, pgd_path)
+        dfs.append(df_pgd)
+
+    if len(dfs) == 1:
+        print("⚠️ No adversarial datasets found. Training on clean data only.")
+    else:
+        print(f"✅ Including {len(dfs)-1} adversarial dataset(s) in training.")
 
     # Prepare training data
-    X_clean = df_clean.drop(columns=['label']).values
-    X_fgsm = df_fgsm.drop(columns=['label']).values
-    X_pgd = df_pgd.drop(columns=['label']).values
+    X_all = np.vstack([df.drop(columns=['label']).values for df in dfs])
 
     label_encoder = joblib.load(os.path.join(model_dir, 'label_encoder.pkl'))
-    y_clean = label_encoder.transform(df_clean['label'])
-    y_fgsm = label_encoder.transform(df_fgsm['label'])
-    y_pgd = label_encoder.transform(df_pgd['label'])
+    y_all = np.concatenate([label_encoder.transform(df['label']) for df in dfs])
 
-    X_all = np.vstack([X_clean, X_fgsm, X_pgd])
-    y_all = np.concatenate([y_clean, y_fgsm, y_pgd])
     input_dim = X_all.shape[1]
     num_classes = len(np.unique(y_all))
 
@@ -108,7 +114,7 @@ def run_adversarial_training(data_dir, model_dir, epochs=10, lr=0.001):
         print(f"Epoch {epoch+1}/{epochs} - Loss: {loss.item():.4f}")
 
     torch.save(model.state_dict(), os.path.join(model_dir, 'neural_net_adv.pt'))
-    print("Adversarially trained model saved as 'neural_net_adv.pt'")
+    print("✅ Adversarially trained model saved as 'neural_net_adv.pt'")
     return True
 
 # CLI fallback

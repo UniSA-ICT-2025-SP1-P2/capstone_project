@@ -74,7 +74,7 @@ def run_evaluation(
 if __name__ == "__main__":
     DATA_DIR = os.path.join(PROTOTYPE_DIR, 'data')
     data_files = {
-        'clean': os.path.join(DATA_DIR, 'test_label.csv'),
+        'clean': os.path.join(DATA_DIR, 'uploaded_dataset.csv'),
         'fgsm': os.path.join(DATA_DIR, 'adversarial_fgsm_label.csv'),
         'pgd': os.path.join(DATA_DIR, 'adversarial_pgd_label.csv'),
     }

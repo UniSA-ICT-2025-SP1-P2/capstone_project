@@ -79,7 +79,9 @@ def compare_shap_values(model, X_original, X_adversarial, class_label="Conti", e
         return None
 
 def run_attack_simulation(models, X_test, y_test, epsilon_values, features_not_to_modify, source_model, target_class="Benign"):
+
     """Run attack simulation with adversarial samples generated for multiple epsilon values using FGSM."""
+    
     le_catname, feature_names = load_resources()
     all_results = []
     
@@ -229,7 +231,7 @@ def run_pgd_attack_simulation(models, X_test, y_test, epsilon_values, features_n
     conti_indices = y_test.index[y_test == conti_encoded]
     if len(conti_indices) == 0:
         raise ValueError("No Conti samples found in the dataset")
-    
+
     compare_indices = conti_indices[:100] if len(conti_indices) > 100 else conti_indices
     X_conti = X_test.loc[compare_indices]
     
@@ -243,7 +245,7 @@ def run_pgd_attack_simulation(models, X_test, y_test, epsilon_values, features_n
         
         # Generate adversarial samples
         X_conti_scaled = scaler.transform(X_conti) if scaler else X_conti.values
-        pgd = ProjectedGradientDescent(estimator=art_classifier, eps=epsilon, eps_step=0.01, max_iter=10, targeted=True)
+        pgd = ProjectedGradientDescent(estimator=art_classifier, eps=epsilon, eps_step= epsilon/10, max_iter=100, targeted=True)
         X_adv_scaled = X_conti_scaled if epsilon == 0.0 else pgd.generate(X_conti_scaled, y=np.full(len(X_conti), benign_encoded))
         X_adv = scaler.inverse_transform(X_adv_scaled) if scaler else X_adv_scaled
         
@@ -405,6 +407,81 @@ def generate_adversarial_samples_for_retraining(model, X, y, epsilon, n_samples=
     print(f"Saved retraining samples to {data_filename}")
     
     return X_adv_df
+
+
+def generate_pgd_samples_for_retraining(model, X, y, epsilon, n_samples=1000, target_class="Benign"):
+    """Generate adversarial samples for retraining using PGD from non-Benign samples."""
+
+    le_catname, feature_names = load_resources()
+    np.random.seed(42)
+    
+    try:
+        benign_encoded = le_catname.transform([target_class])[0]
+    except ValueError:
+        print(f"Target class '{target_class}' not found. Using first class as target.")
+        benign_encoded = 0
+    
+    # Select non-Benign samples
+    malware_mask = y != benign_encoded
+    X_malware = X[malware_mask]
+    y_malware = y[malware_mask]
+    
+    if len(X_malware) == 0:
+        raise ValueError(f"No non-{target_class} samples found in the dataset")
+    
+    if len(X_malware) < n_samples:
+        selected_indices = X_malware.index
+        print(f"Warning: Requested {n_samples} samples but only {len(X_malware)} available.")
+    else:
+        selected_indices = np.random.choice(X_malware.index, n_samples, replace=False)
+    
+    X_subset = X_malware.loc[selected_indices]
+    
+    # Prepare classifier and scaler
+    classifier = model.named_steps['clf'] if hasattr(model, 'named_steps') else model
+    scaler = model.named_steps.get('scaler', None) if hasattr(model, 'named_steps') else None
+    X_subset_scaled = scaler.transform(X_subset) if scaler else X_subset.values
+    
+    # Generate PGD adversarial samples
+    art_classifier = SklearnClassifier(model=classifier)
+    pgd = ProjectedGradientDescent(
+        estimator=art_classifier,
+        eps=epsilon,
+        eps_step=epsilon / 5,  # Dynamic step size
+        max_iter=75,          # Increased iterations for better convergence
+        targeted=True
+    )
+    X_adv_scaled = pgd.generate(X_subset_scaled, y=np.full(len(X_subset), benign_encoded))
+    
+    # Reverse scaling if applicable
+    X_adv = scaler.inverse_transform(X_adv_scaled) if scaler else X_adv_scaled
+    X_adv_df = pd.DataFrame(X_adv, columns=feature_names)
+    
+    # Add Category information
+    try:
+        train_df = pd.read_csv(os.path.join(DATA_DIR, "Train_Dataset.csv"))
+        if 'Category' in train_df.columns:
+            categories = [train_df.loc[idx, 'Category'] if idx in train_df.index else "Unknown"
+                         for idx in selected_indices]
+            X_adv_df.insert(0, 'Category', categories)
+    except Exception as e:
+        print(f"Error adding Category information: {e}")
+    
+    # Save samples
+    filename = os.path.join(OUTPUT_DIR, f"adversarial_retrain_pgd_eps_{epsilon}.csv")
+    X_adv_df.to_csv(filename, index=False)
+    print(f"Saved PGD retraining samples to {filename}")
+    
+    # Save to additional 'data' folder
+    data_output_dir = os.path.join(BASE_DIR, "data")
+    os.makedirs(data_output_dir, exist_ok=True)
+    data_filename = os.path.join(data_output_dir, f"adversarial_pgd.csv")
+    X_adv_df.to_csv(data_filename, index=False)
+    print(f"Saved PGD retraining samples to {data_filename}")
+    
+    return X_adv_df
+
+
 
 if __name__ == "__main__":
     print("This module is not intended to be run directly. Import and use its functions instead.")

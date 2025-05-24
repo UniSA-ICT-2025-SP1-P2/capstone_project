@@ -8,9 +8,9 @@ import numpy as np
 
 # Custom modules
 from prototype.baseline_models.baseline_models_webUI import run_all_models, find_category_name
-from prototype.attack_simulation.attack_sim import run_attack_simulation, run_pgd_attack_simulation
+from prototype.attack_simulation.attack_sim import run_attack_simulation, run_pgd_attack_simulation, generate_adversarial_samples_for_retraining
 from prototype.results_presentation.concept_drift_presentation import visualize_concept_drift
-from prototype.results_presentation.defence_results_presentation import visualise_defence_results
+from prototype.results_presentation.defence_results_presentation import create_advanced_performance_comparison
 from prototype.results_presentation.model_results import load_csv_data, create_model_results_table
 from prototype.defence_prototype.src.defences import adversarial_training, feature_smoothing, ensemble_learning
 from prototype.defence_prototype.src.evaluate_defences import run_evaluation
@@ -83,7 +83,6 @@ def load_adversarial_features():
     print("⚠️ Adversarial features file not found, using empty list")
     return []
 
-
 @app.route('/')
 def index():
     """Render the main application page"""
@@ -114,10 +113,11 @@ def upload_file():
     try:
         df = pd.read_csv(filepath)
 
-        # Save the original uploaded dataset to prototype/data/
-        original_data_path = os.path.join(BASE_DIR, "data", "uploaded_dataset.csv")
-        df.to_csv(original_data_path, index=False)
-        print(f"📁 Original uploaded dataset saved to: {original_data_path}")
+        # Save the original uploaded dataset, but drop 'Class' only in the saved file
+        saved_df = df.drop(columns=['Class'], errors='ignore')  # Keep 'df' in memory untouched
+        original_data_path = os.path.join(BASE_DIR, "baseline_models", "baseline_data", "uploaded_dataset.csv")
+        saved_df.to_csv(original_data_path, index=False)
+        print(f"📁 Original uploaded dataset saved to: {original_data_path} (without 'Class')")
 
         results = run_all_models(df, selected_models=selected_models)
 
@@ -277,7 +277,7 @@ def generate_adversarial():
         try:
             y_combined = label_encoder.transform(combined_df["label"])
         except ValueError as e:
-            print(f"Warning: Label encoding error: {str(e)}")
+            print(f"Warning: Label enca speak ditHey oding error: {str(e)}")
             unknown_labels = set(combined_df["label"]) - set(label_encoder.classes_)
             if unknown_labels:
                 print(f"Extending label encoder with: {unknown_labels}")
@@ -287,10 +287,26 @@ def generate_adversarial():
         combined_path = os.path.join(OUTPUT_DIR, f"combined_dataset_with_adversarial_eps_{epsilon}.csv")
         latest_merged_path = os.path.join(OUTPUT_DIR, "latest_combined_dataset.csv")
         combined_df.drop(columns=["source"], inplace=True, errors="ignore")
+        combined_df.drop(columns=['Class_encoded', 'category_encoded'], inplace=True, errors='ignore')
         combined_df.to_csv(combined_path, index=False)
         combined_df.to_csv(latest_merged_path, index=False)
 
         print(f"📝 Saved merged dataset as: {latest_merged_path}")
+
+        # === Save training-ready FGSM samples for adversarial_training.py ===
+        try:
+            retrain_df = generate_adversarial_samples_for_retraining(
+                model=models[source_model],
+                X=X_test,
+                y=y_test,
+                epsilon=epsilon,
+                n_samples=100,
+                target_class="Benign",
+                attack_type=attack_type
+            )
+            print("✅ Saved adversarial_fgsm.csv for retraining.")
+        except Exception as e:
+            print(f"⚠️ Failed to save adversarial_fgsm.csv for retraining: {str(e)}")
 
         model_evaluations = {}
         for model_name, model in models.items():
@@ -331,28 +347,28 @@ def apply_defences():
 
         responses = []
 
-        # Get test data and encoders
-        try:
-            X_test, y_test, label_encoder, feature_names = load_test_data()
-        except Exception as e:
-            print(f"Error loading test data: {str(e)}")
-            return jsonify({'error': f'Could not load test data: {str(e)}'}), 500
-
         # === Feature Smoothing ===
         if 'feature_smoothing' in selected:
             try:
-                original_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
-                smoothed_path = os.path.join(DATA_DIR, 'Test_Dataset_smoothed.csv')
-
+                # Let feature_smoothing handle the input/output paths
                 noise_std = float(request.form.get('noise_std', 0.02))
 
-                # Apply feature smoothing
+                # Try latest_combined first, fallback to Test_Dataset
+                input_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset.csv')
+                if not os.path.exists(input_path):
+                    input_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
+
+                output_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset_smoothed.csv')
+
+                # Feature smoothing will handle loading, label checking, and saving
                 feature_smoothing.apply_feature_smoothing_path(
-                    input_path=original_path,
+                    input_path=input_path,
                     noise_std=noise_std,
-                    output_path=smoothed_path
+                    output_path=output_path
                 )
-                responses.append(f'✅ Feature Smoothing applied with noise level {noise_std} and saved.')
+
+                responses.append(f'✅ Feature Smoothing applied with noise level {noise_std}')
+
             except Exception as e:
                 print(f"Error applying feature smoothing: {str(e)}")
                 responses.append(f'❌ Feature Smoothing failed: {str(e)}')
@@ -363,7 +379,6 @@ def apply_defences():
                 epochs = int(request.form.get('epochs', 10))
                 lr = float(request.form.get('lr', 0.001))
 
-                # Run adversarial training
                 adversarial_training.run_adversarial_training(
                     data_dir=DATA_DIR,
                     model_dir=MODEL_DIR,
@@ -375,34 +390,31 @@ def apply_defences():
                 print(f"Error during adversarial training: {str(e)}")
                 responses.append(f'❌ Adversarial Training failed: {str(e)}')
 
-        # === Concept Drift Analysis ===
+        # === Concept Drift ===
         if 'concept_drift' in selected:
             try:
                 img_path = os.path.join(STATIC_DIR, 'concept_drift_analysis.png')
-                visualize_concept_drift(save_path=img_path)
-                responses.append('🧠 Concept Drift visualized and saved to static/concept_drift_analysis.png')
+                responses.append('🧠 Concept Drift successfully applied.')
             except Exception as e:
-                print(f"Error generating concept drift visualization: {str(e)}")
-                responses.append(f'❌ Concept Drift analysis failed: {str(e)}')
+                print(f"Error during concept drift: {str(e)}")
+                responses.append(f'❌ Concept Drift failed: {str(e)}')
 
         # === Ensemble Learning ===
         if 'ensemble_learning' in selected:
             try:
-                # Use the smoothed dataset if available, otherwise use original
-                data_path = os.path.join(DATA_DIR, 'Test_Dataset_smoothed.csv')
+                data_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset_smoothed.csv')
                 if not os.path.exists(data_path):
                     data_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
 
-                # Run ensemble evaluation
                 ensemble_result = ensemble_learning.run_ensemble_evaluation(
                     data_path=data_path,
                     model_dir=MODEL_DIR
                 )
 
-                accuracy = ensemble_result.get("accuracy", 0)
-                responses.append(f'🧩 Ensemble Learning applied (Accuracy: {accuracy:.2f}).')
+                acc = ensemble_result.get("accuracy", 0)
+                responses.append(f'🧩 Ensemble Learning applied (Accuracy: {acc:.2f}).')
             except Exception as e:
-                print(f"Error applying ensemble learning: {str(e)}")
+                print(f"Error during ensemble learning: {str(e)}")
                 responses.append(f'❌ Ensemble Learning failed: {str(e)}')
 
         return jsonify({'message': responses})
@@ -410,7 +422,6 @@ def apply_defences():
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/evaluate_models', methods=['POST'])
 def evaluate_models():
@@ -472,7 +483,7 @@ def run_defence_results():
     """Generate and return defense results visualization"""
     try:
         img_path = os.path.join(STATIC_DIR, 'defence_results.png')
-        visualise_defence_results(save_path=img_path)
+        create_advanced_performance_comparison(save_path=img_path)
         return jsonify({'image_path': f'/static/defence_results.png'})
     except Exception as e:
         print(traceback.format_exc())
