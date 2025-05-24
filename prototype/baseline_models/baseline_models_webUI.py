@@ -193,9 +193,13 @@ def run_all_models(df, selected_models=None, progress_callback=None):
         os.path.join(BASELINE_DATA_DIR, "Classifier_Results.xlsx"),
         sheet_name="SHAP_Features", index=False
     )
+
     train_df.to_csv(os.path.join(BASELINE_DATA_DIR, "Train_Dataset.csv"), index=False)
     validation_df.to_csv(os.path.join(BASELINE_DATA_DIR, "Validation_Dataset.csv"), index=False)
+    # Add 'label' column so downstream code can read category_name
+    test_df["label"] = test_df["category_name"]
     test_df.to_csv(os.path.join(BASELINE_DATA_DIR, "Test_Dataset.csv"), index=False)
+
     pd.DataFrame(ADVERSARIAL_FEATURES, columns=["Feature"]).to_csv(
         os.path.join(BASELINE_DATA_DIR, "Adversarial_Features.csv"), index=False
     )
@@ -209,7 +213,6 @@ def run_all_models(df, selected_models=None, progress_callback=None):
         "adversarial_features": ADVERSARIAL_FEATURES,
         "results": results
     }
-
 
 def evaluate_models(df, selected_models=None, progress_callback=None):
     """
