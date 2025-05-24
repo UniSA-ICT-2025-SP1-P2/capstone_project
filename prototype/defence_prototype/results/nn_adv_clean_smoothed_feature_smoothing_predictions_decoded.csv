@@ -10083,7 +10083,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,5,Benign,Emotet
-2,2,Benign,Benign
+2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,5,Benign,Emotet
@@ -10247,7 +10247,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,5,Benign,Emotet
-2,2,Benign,Benign
+2,5,Benign,Emotet
 2,8,Benign,Pysa
 2,5,Benign,Emotet
 2,5,Benign,Emotet
@@ -14420,8 +14420,8 @@ true_label,predicted,true_label_decoded,predicted_decoded
 2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,5,Benign,Emotet
-2,2,Benign,Benign
 2,5,Benign,Emotet
+2,5,Benign,Emotet
 2,8,Benign,Pysa
 2,2,Benign,Benign
 2,5,Benign,Emotet
@@ -16703,9 +16703,9 @@ true_label,predicted,true_label_decoded,predicted_decoded
 2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,8,Benign,Pysa
-2,2,Benign,Benign
 2,5,Benign,Emotet
 2,5,Benign,Emotet
+2,5,Benign,Emotet
 2,8,Benign,Pysa
 2,5,Benign,Emotet
 2,5,Benign,Emotet
@@ -17774,7 +17774,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 2,5,Benign,Emotet
 2,8,Benign,Pysa
 2,8,Benign,Pysa
-2,2,Benign,Benign
+2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,8,Benign,Pysa
@@ -22743,7 +22743,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 7,14,Maze,Transponder
 7,1,Maze,Ako
 7,1,Maze,Ako
-7,1,Maze,Ako
+7,14,Maze,Transponder
 7,5,Maze,Emotet
 7,5,Maze,Emotet
 7,5,Maze,Emotet
@@ -30459,7 +30459,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 14,5,Transponder,Emotet
 14,5,Transponder,Emotet
 14,5,Transponder,Emotet
-14,1,Transponder,Ako
+14,14,Transponder,Transponder
 14,14,Transponder,Transponder
 14,14,Transponder,Transponder
 14,14,Transponder,Transponder

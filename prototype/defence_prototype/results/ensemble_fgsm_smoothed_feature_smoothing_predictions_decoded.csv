@@ -16,7 +16,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 7,0,Maze,180solutions
 14,13,Transponder,TIBS
 0,2,180solutions,Benign
-8,10,Pysa,Refroso
+8,2,Pysa,Benign
 11,0,Scar,180solutions
 10,2,Refroso,Benign
 12,13,Shade,TIBS
@@ -115,7 +115,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 0,0,180solutions,180solutions
 7,2,Maze,Benign
 7,2,Maze,Benign
-3,10,CWS,Refroso
+3,2,CWS,Benign
 10,7,Refroso,Maze
 1,2,Ako,Benign
 14,13,Transponder,TIBS
@@ -150,7 +150,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 6,2,Gator,Benign
 4,2,Conti,Benign
 14,13,Transponder,TIBS
-12,2,Shade,Benign
+12,10,Shade,Refroso
 5,0,Emotet,180solutions
 3,2,CWS,Benign
 12,0,Shade,180solutions
@@ -247,7 +247,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 1,13,Ako,TIBS
 9,0,Reconyc,180solutions
 7,0,Maze,180solutions
-4,10,Conti,Refroso
+4,2,Conti,Benign
 10,2,Refroso,Benign
 7,0,Maze,180solutions
 4,2,Conti,Benign
@@ -344,24 +344,24 @@ true_label,predicted,true_label_decoded,predicted_decoded
 0,2,180solutions,Benign
 15,2,Zeus,Benign
 15,2,Zeus,Benign
-12,1,Shade,Ako
+12,7,Shade,Maze
 5,7,Emotet,Maze
 1,0,Ako,180solutions
 7,0,Maze,180solutions
 11,0,Scar,180solutions
 12,2,Shade,Benign
 0,13,180solutions,TIBS
-15,2,Zeus,Benign
+15,10,Zeus,Refroso
 4,0,Conti,180solutions
 0,2,180solutions,Benign
 11,0,Scar,180solutions
 14,0,Transponder,180solutions
 1,0,Ako,180solutions
-14,2,Transponder,Benign
+14,10,Transponder,Refroso
 7,10,Maze,Refroso
 7,13,Maze,TIBS
 5,0,Emotet,180solutions
-10,2,Refroso,Benign
+10,10,Refroso,Refroso
 4,0,Conti,180solutions
 11,0,Scar,180solutions
 3,2,CWS,Benign
@@ -403,7 +403,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 11,0,Scar,180solutions
 0,10,180solutions,Refroso
 11,0,Scar,180solutions
-8,10,Pysa,Refroso
+8,2,Pysa,Benign
 10,0,Refroso,180solutions
 8,2,Pysa,Benign
 13,2,TIBS,Benign
@@ -426,7 +426,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 7,10,Maze,Refroso
 15,0,Zeus,180solutions
 7,0,Maze,180solutions
-6,10,Gator,Refroso
+6,2,Gator,Benign
 8,2,Pysa,Benign
 14,13,Transponder,TIBS
 12,2,Shade,Benign
@@ -443,7 +443,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 4,2,Conti,Benign
 3,2,CWS,Benign
 0,2,180solutions,Benign
-6,10,Gator,Refroso
+6,2,Gator,Benign
 11,0,Scar,180solutions
 12,2,Shade,Benign
 11,0,Scar,180solutions
@@ -495,7 +495,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 1,13,Ako,TIBS
 7,2,Maze,Benign
 11,0,Scar,180solutions
-14,10,Transponder,Refroso
+14,14,Transponder,Transponder
 0,0,180solutions,180solutions
 10,0,Refroso,180solutions
 5,0,Emotet,180solutions
@@ -510,7 +510,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 7,0,Maze,180solutions
 1,0,Ako,180solutions
 8,2,Pysa,Benign
-1,10,Ako,Refroso
+1,2,Ako,Benign
 14,2,Transponder,Benign
 14,10,Transponder,Refroso
 5,0,Emotet,180solutions
@@ -576,7 +576,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 9,2,Reconyc,Benign
 15,0,Zeus,180solutions
 5,0,Emotet,180solutions
-1,0,Ako,180solutions
+1,1,Ako,Ako
 12,2,Shade,Benign
 7,2,Maze,Benign
 9,2,Reconyc,Benign
@@ -596,7 +596,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 10,2,Refroso,Benign
 4,0,Conti,180solutions
 14,2,Transponder,Benign
-9,2,Reconyc,Benign
+9,10,Reconyc,Refroso
 15,10,Zeus,Refroso
 7,2,Maze,Benign
 6,2,Gator,Benign
@@ -642,7 +642,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 12,0,Shade,180solutions
 10,0,Refroso,180solutions
 10,2,Refroso,Benign
-8,7,Pysa,Maze
+8,1,Pysa,Ako
 14,0,Transponder,180solutions
 15,2,Zeus,Benign
 14,2,Transponder,Benign
@@ -659,7 +659,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 9,0,Reconyc,180solutions
 11,0,Scar,180solutions
 11,2,Scar,Benign
-11,10,Scar,Refroso
+11,2,Scar,Benign
 3,13,CWS,TIBS
 7,0,Maze,180solutions
 14,10,Transponder,Refroso
@@ -689,7 +689,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 0,10,180solutions,Refroso
 10,0,Refroso,180solutions
 15,0,Zeus,180solutions
-12,10,Shade,Refroso
+12,2,Shade,Benign
 1,7,Ako,Maze
 15,0,Zeus,180solutions
 11,0,Scar,180solutions
@@ -770,7 +770,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 4,0,Conti,180solutions
 6,2,Gator,Benign
 8,10,Pysa,Refroso
-10,10,Refroso,Refroso
+10,2,Refroso,Benign
 3,2,CWS,Benign
 1,10,Ako,Refroso
 11,0,Scar,180solutions
@@ -803,7 +803,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 0,0,180solutions,180solutions
 5,0,Emotet,180solutions
 8,0,Pysa,180solutions
-3,10,CWS,Refroso
+3,2,CWS,Benign
 6,2,Gator,Benign
 9,0,Reconyc,180solutions
 10,0,Refroso,180solutions
@@ -900,7 +900,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 11,0,Scar,180solutions
 3,2,CWS,Benign
 8,0,Pysa,180solutions
-4,10,Conti,Refroso
+4,2,Conti,Benign
 6,2,Gator,Benign
 6,2,Gator,Benign
 3,0,CWS,180solutions
