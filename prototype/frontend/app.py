@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_file
 from sklearn.metrics import classification_report
 import os
 import pandas as pd
@@ -7,12 +7,15 @@ import joblib
 import numpy as np
 
 # Custom modules
-from prototype.baseline_models.baseline_models_webUI import run_all_models, find_category_name
-from prototype.attack_simulation.attack_sim import run_attack_simulation, run_pgd_attack_simulation, generate_adversarial_samples_for_retraining
+from prototype.baseline_models.baseline_models_webUI import run_all_models, find_category_name, \
+    evaluate_models as evaluate_adversarial_models
+from prototype.attack_simulation.attack_sim import run_attack_simulation, run_pgd_attack_simulation, \
+    generate_adversarial_samples_for_retraining
 from prototype.results_presentation.concept_drift_presentation import visualize_concept_drift
 from prototype.results_presentation.defence_results_presentation import create_advanced_performance_comparison
 from prototype.results_presentation.model_results import load_csv_data, create_model_results_table
-from prototype.defence_prototype.src.defences import adversarial_training, feature_smoothing, ensemble_learning
+from prototype.defence_prototype.src.defences import adversarial_training, feature_smoothing, ensemble_learning, \
+    concept_drift
 from prototype.defence_prototype.src.evaluate_defences import run_evaluation
 
 app = Flask(__name__)
@@ -70,8 +73,9 @@ def load_test_data():
     # Prepare features and labels
     X_test = test_df[feature_names]
     y_test = pd.Series(label_encoder.transform(test_df['category_name']), index=test_df.index)
+    y_test_original = test_df['category_name']
 
-    return X_test, y_test, label_encoder, feature_names
+    return X_test, y_test, y_test_original, label_encoder, feature_names
 
 
 def load_adversarial_features():
@@ -82,6 +86,7 @@ def load_adversarial_features():
         return df['Feature'].tolist()
     print("⚠️ Adversarial features file not found, using empty list")
     return []
+
 
 @app.route('/')
 def index():
@@ -184,6 +189,7 @@ def upload_file():
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
+
 @app.route('/generate_adversarial', methods=['POST'])
 def generate_adversarial():
     """Generate adversarial examples using FGSM or PGD attacks"""
@@ -198,7 +204,7 @@ def generate_adversarial():
 
         # Load models and test data
         models = load_models()
-        X_test, y_test, label_encoder, feature_names = load_test_data()
+        X_test, y_test_encoded, y_test_original, label_encoder, feature_names = load_test_data()
         features_to_lock = load_adversarial_features()
 
         valid_models = ["LogisticRegression", "SVM"]
@@ -217,9 +223,9 @@ def generate_adversarial():
 
         # Generate adversarial samples
         if attack_type == 'fgsm':
-            run_attack_simulation(models, X_test, y_test, [epsilon], features_to_lock, source_model)
+            run_attack_simulation(models, X_test, y_test_encoded, [epsilon], features_to_lock, source_model)
         else:
-            run_pgd_attack_simulation(models, X_test, y_test, [epsilon], features_to_lock, source_model)
+            run_pgd_attack_simulation(models, X_test, y_test_encoded, [epsilon], features_to_lock, source_model)
 
         if not os.path.exists(sample_path):
             return jsonify({'error': f'Adversarial samples file not found at {sample_path}'}), 500
@@ -232,13 +238,15 @@ def generate_adversarial():
             print("Warning: 'Class' column not found in adversarial samples. Adding default class 'Conti'.")
             adv_df['Class'] = 'Conti'
 
-        adv_df = adv_df.drop(columns=[col for col in adv_df.columns if col not in feature_names + ['Class', 'Category', 'source']], errors='ignore')
+        adv_df = adv_df.drop(
+            columns=[col for col in adv_df.columns if col not in feature_names + ['Class', 'Category', 'source']],
+            errors='ignore')
         for f in feature_names:
             if f not in adv_df.columns:
                 adv_df[f] = 0
 
         # Load the full original uploaded dataset
-        original_path = os.path.join(BASE_DIR, "data", "uploaded_dataset.csv")
+        original_path = os.path.join(BASE_DIR, "baseline_models", "baseline_data", "uploaded_dataset.csv")
         if not os.path.exists(original_path):
             return jsonify({'error': 'Uploaded dataset not found at expected location.'}), 400
         original_df = pd.read_csv(original_path)
@@ -271,7 +279,8 @@ def generate_adversarial():
         adv_df.reset_index(drop=True, inplace=True)
         combined_df = pd.concat([original_df, adv_df], ignore_index=True)
 
-        print(f"🔢 Combined dataset contains {len(combined_df)} rows ({len(original_df)} original + {len(adv_df)} adversarial)")
+        print(
+            f"🔢 Combined dataset contains {len(combined_df)} rows ({len(original_df)} original + {len(adv_df)} adversarial)")
 
         X_combined = combined_df[feature_names].astype(float)
         try:
@@ -298,44 +307,44 @@ def generate_adversarial():
             retrain_df = generate_adversarial_samples_for_retraining(
                 model=models[source_model],
                 X=X_test,
-                y=y_test,
+                y=y_test_original,
                 epsilon=epsilon,
                 n_samples=100,
                 target_class="Benign",
-                attack_type=attack_type
             )
             print("✅ Saved adversarial_fgsm.csv for retraining.")
         except Exception as e:
             print(f"⚠️ Failed to save adversarial_fgsm.csv for retraining: {str(e)}")
 
-        model_evaluations = {}
-        for model_name, model in models.items():
-            try:
-                y_pred = model.predict(X_combined)
-                pred_col = f"{model_name}_prediction"
-                combined_df[pred_col] = label_encoder.inverse_transform(y_pred)
-                accuracy = float((y_pred == y_combined).mean())
-                report = classification_report(y_combined, y_pred, output_dict=True, zero_division=0)
-                model_evaluations[model_name] = {
-                    'accuracy': accuracy,
-                    'f1_score': float(report['weighted avg']['f1-score']),
-                    'precision': float(report['weighted avg']['precision']),
-                    'recall': float(report['weighted avg']['recall'])
-                }
-                print(f"✅ Evaluated {model_name} against adversarial examples")
-            except Exception as e:
-                print(f"❌ Failed to evaluate {model_name}: {str(e)}")
-                model_evaluations[model_name] = {'error': str(e)}
+        # Evaluate models directly using the helper
+        combined_df["Category"] = combined_df["label"]  # Required for evaluator
+        raw_results = evaluate_adversarial_models(combined_df)
+        evaluation_reports = {}
+
+        for model_name, report in raw_results.items():
+            evaluation_reports[model_name] = {
+                "accuracy": report.get("accuracy"),
+                "f1_score": report.get("macro avg", {}).get("f1-score"),
+                "precision": report.get("macro avg", {}).get("precision"),
+                "recall": report.get("macro avg", {}).get("recall"),
+                "model_details": {
+                    "type": model_name,
+                    "features": f"{len(combined_df.columns) - 2} features used"  # crude estimate
+                },
+                "shap_image": None,  # Optional: load SHAP from path if needed
+                "shap_values": {}  # Optional: extract from SHAP sheet if needed
+            }
 
         return jsonify({
             'message': f'{attack_type.upper()} adversarial attack completed successfully.',
-            'evaluation': model_evaluations,
+            'evaluation': evaluation_reports,
             'output_file': combined_path
         })
 
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/apply_defences', methods=['POST'])
 def apply_defences():
@@ -346,28 +355,24 @@ def apply_defences():
             return jsonify({'message': 'No defenses selected.'}), 400
 
         responses = []
+        evaluation_reports = {}
 
         # === Feature Smoothing ===
         if 'feature_smoothing' in selected:
             try:
-                # Let feature_smoothing handle the input/output paths
                 noise_std = float(request.form.get('noise_std', 0.02))
-
-                # Try latest_combined first, fallback to Test_Dataset
                 input_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset.csv')
                 if not os.path.exists(input_path):
                     input_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
 
                 output_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset_smoothed.csv')
-
-                # Feature smoothing will handle loading, label checking, and saving
                 feature_smoothing.apply_feature_smoothing_path(
                     input_path=input_path,
                     noise_std=noise_std,
                     output_path=output_path
                 )
-
                 responses.append(f'✅ Feature Smoothing applied with noise level {noise_std}')
+                print(f"✅ Smoothed dataset saved to: {output_path}")
 
             except Exception as e:
                 print(f"Error applying feature smoothing: {str(e)}")
@@ -386,6 +391,59 @@ def apply_defences():
                     lr=lr
                 )
                 responses.append(f'✅ Adversarial Training completed with {epochs} epochs and model updated.')
+
+                # === Evaluate nn_adv on clean test set ===
+                try:
+                    test_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
+                    df = pd.read_csv(test_path)
+
+                    label_encoder = joblib.load(os.path.join(MODEL_DIR, 'label_encoder.pkl'))
+                    feature_names = joblib.load(os.path.join(MODEL_DIR, 'feature_names.pkl'))
+
+                    if 'label' in df.columns:
+                        y_true = label_encoder.transform(df['label'])
+                    else:
+                        y_true = label_encoder.transform(df['category_name'])
+
+                    X = df[feature_names].values
+
+                    from prototype.defence_prototype.src.evaluate_defences import evaluate
+                    result = evaluate(
+                        X,
+                        y_true,
+                        'nn_adv',
+                        'adversarial_training',
+                        'clean',
+                        label_encoder,
+                        OUTPUT_DIR
+                    )
+
+                    # Save to defence_results.csv
+                    results_csv_path = os.path.join(OUTPUT_DIR, 'defence_results.csv')
+                    results_df = pd.DataFrame([result])
+                    if os.path.exists(results_csv_path):
+                        existing = pd.read_csv(results_csv_path)
+                        updated = pd.concat([existing, results_df], ignore_index=True)
+                    else:
+                        updated = results_df
+                    updated.to_csv(results_csv_path, index=False)
+
+                    evaluation_reports['nn_adv'] = {
+                        "accuracy": result.get("accuracy"),
+                        "f1_score": result.get("f1_score"),
+                        "precision": result.get("precision"),
+                        "recall": result.get("recall"),
+                        "model_details": {
+                            "type": "nn_adv",
+                            "features": len(feature_names)
+                        },
+                        "shap_values": {}
+                    }
+
+                    responses.append(f"📊 nn_adv Accuracy: {result['accuracy']:.4f}, F1: {result['f1_score']:.4f}")
+                except Exception as e:
+                    responses.append(f"⚠️ Evaluation of adversarial training failed: {str(e)}")
+
             except Exception as e:
                 print(f"Error during adversarial training: {str(e)}")
                 responses.append(f'❌ Adversarial Training failed: {str(e)}')
@@ -393,8 +451,29 @@ def apply_defences():
         # === Concept Drift ===
         if 'concept_drift' in selected:
             try:
-                img_path = os.path.join(STATIC_DIR, 'concept_drift_analysis.png')
-                responses.append('🧠 Concept Drift successfully applied.')
+                chunk_size = int(request.form.get('chunk_size', 500))
+                threshold = float(request.form.get('threshold', 0.7))
+                input_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
+
+                feature_names = joblib.load(os.path.join(MODEL_DIR, 'feature_names.pkl'))
+                df = pd.read_csv(input_path)
+
+                if 'label' not in df.columns:
+                    raise ValueError("Expected 'label' column not found in dataset.")
+
+                df_filtered = df[feature_names + ['label']]
+
+                filtered_path = os.path.join(OUTPUT_DIR, 'concept_drift_cleaned.csv')
+                df_filtered.to_csv(filtered_path, index=False)
+
+                concept_drift.run_concept_drift(
+                    data_path=filtered_path,
+                    model_type='ensemble',
+                    chunk_size=chunk_size,
+                    threshold=threshold,
+                    results_dir=OUTPUT_DIR
+                )
+                responses.append(f'🧠 Concept Drift applied with chunk size {chunk_size} and threshold {threshold}.')
             except Exception as e:
                 print(f"Error during concept drift: {str(e)}")
                 responses.append(f'❌ Concept Drift failed: {str(e)}')
@@ -417,14 +496,22 @@ def apply_defences():
                 print(f"Error during ensemble learning: {str(e)}")
                 responses.append(f'❌ Ensemble Learning failed: {str(e)}')
 
-        return jsonify({'message': responses})
+        # === Final Filtering ===
+        # Always return original models (baseline evaluation)
+        baseline_models = ["RandomForest", "KNN", "LogisticRegression", "DecisionTree", "SVM"]
+        filtered_eval = {k: v for k, v in evaluation_reports.items() if k in baseline_models}
+
+        return jsonify({
+            'message': responses,
+            'evaluation': filtered_eval
+        })
 
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 @app.route('/evaluate_models', methods=['POST'])
-def evaluate_models():
+def evaluate_models_route():
     """Evaluate models on different datasets (clean/adversarial/smoothed)"""
     try:
         data_files = {}
@@ -470,13 +557,24 @@ def evaluate_models():
 def run_concept_drift():
     """Generate and return concept drift visualization"""
     try:
-        img_path = os.path.join(STATIC_DIR, 'concept_drift_analysis.png')
-        visualize_concept_drift(save_path=img_path)
+        # 1. Generate the image
+        visualize_concept_drift()  # saves it to known location
+
+        # 2. Copy it to static dir (Flask can serve it easily)
+        src = os.path.join(BASE_DIR, 'defence_prototype', 'results', 'concept_drift_analysis.png')
+        dst = os.path.join(STATIC_DIR, 'concept_drift_analysis.png')
+        if not os.path.exists(src):
+            return jsonify({'error': 'Image generation failed'}), 500
+
+        import shutil
+        shutil.copyfile(src, dst)
+
+        # 3. Return the static path as JSON
         return jsonify({'image_path': f'/static/concept_drift_analysis.png'})
+
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
-
 
 @app.route('/run_defence_results', methods=['GET'])
 def run_defence_results():
@@ -502,7 +600,6 @@ def run_model_results():
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
-
 
 if __name__ == '__main__':
     # Check if required directories exist
