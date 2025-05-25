@@ -9,11 +9,11 @@ from flask import Flask
 from flask_testing import TestCase
 from app import app
 import shutil
-import csv
 
-#Create Flask class for testing
 
-class PrototypeAppTestCase(TestCase):
+#Create Flask class for unit testing
+
+class AppTestCase(TestCase):
 
     #Create and confiure the Flask app for testing
     def create_app(self):
@@ -27,20 +27,13 @@ class PrototypeAppTestCase(TestCase):
         self.test_data_dir = tempfile.mkdtemp()
 
         #create csv for testing
-        header = ['feature1, feature2, feature3,category_name']
-        data = [
-            [1.0,2.0,3.1,'Conti'],
-            [4.0,5.0,6.0,'Ryuk'],
-            [7.0,8.0,9.0,'Benign']
-        ]
+        self.test_csv_content = "feature1,feature2,feature3,category_name\n1.0,2.0,3.0,Conti\n4.0,5.0,6.0, Benign\n7.0,8.0,9.0,Ryuk\n1.1,2.2,3.2,Benign"
 
         #Create test csv and save to test data directory
         self.test_csv_path = os.path.join(self.test_data_dir, "test_data.csv")
 
-        with open(self.test_csv_path, 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(header)
-            writer.writerows(data)
+        with open(self.test_csv_path, 'w') as file:
+            file.write(self.test_csv_content)
 
     #Clean up after each test
     def cleanUp(self):
@@ -90,6 +83,11 @@ class PrototypeAppTestCase(TestCase):
         data = {
             'file': (BytesIO(self.test_csv_content.encode()), malicious_filename)
         }
+
+        response = self.client.post('/upload', data=data)
+
+        #Ensure app rejects csv file
+        self.assertNotEqual(response.status_code, 200)
         
         # The app should reject files with nullbyte injection points
         # Check that no files with null bytes were created
@@ -104,7 +102,7 @@ if __name__ == '__main__':
     suite = unittest.TestSuite()
     
     # Add basic functionality tests
-    suite.addTest(unittest.makeSuite(PrototypeAppTestCase))
+    suite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(AppTestCase))
     
     # Run tests
     runner = unittest.TextTestRunner(verbosity=2)
