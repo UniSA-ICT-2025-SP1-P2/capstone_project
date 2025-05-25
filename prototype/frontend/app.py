@@ -29,6 +29,7 @@ DATA_DIR = os.path.join(BASE_DIR, "baseline_models", "baseline_data")
 OUTPUT_DIR = os.path.join(BASE_DIR, "attack_simulation_results")
 DEFENCE_DIR = os.path.join(BASE_DIR, "defence_prototype")
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+ATTACK_RESULTS_DIR = os.path.join(BASE_DIR, 'attack_simulation', 'attack_simulation_results')
 
 # Create necessary directories
 for directory in [OUTPUT_DIR, STATIC_DIR]:
@@ -576,27 +577,70 @@ def run_concept_drift():
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
+
 @app.route('/run_defence_results', methods=['GET'])
 def run_defence_results():
-    """Generate and return defense results visualization"""
+    """Generate and return defence results summary chart"""
     try:
-        img_path = os.path.join(STATIC_DIR, 'defence_results.png')
-        create_advanced_performance_comparison(save_path=img_path)
-        return jsonify({'image_path': f'/static/defence_results.png'})
+        # 1. Generate chart (saves it to known internal location)
+        create_advanced_performance_comparison()
+
+        # 2. Copy output to static folder
+        src = os.path.join(BASE_DIR, 'defence_prototype', 'results', 'defence_results.png')  # <- FIXED
+        dst = os.path.join(STATIC_DIR, 'final_defence_summary.png')
+
+        if not os.path.exists(src):
+            return jsonify({'error': 'Defence results image was not generated'}), 500
+
+        import shutil
+        shutil.copyfile(src, dst)
+
+        return jsonify({'image_path': '/static/final_defence_summary.png'})
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/run_model_results', methods=['GET'])
 def run_model_results():
-    """Generate and return model results table"""
+    """Generate and return model results summary chart"""
     try:
-        df = load_csv_data()
-        img = create_model_results_table(df)
-        output_path = os.path.join(STATIC_DIR, 'model_results_table.png')
-        img.save(output_path)
-        return jsonify({'image_path': f'/static/model_results_table.png'})
+        fgsm_path = os.path.join(ATTACK_RESULTS_DIR, 'attack_results_fgsm_summary.csv')
+        pgd_path = os.path.join(ATTACK_RESULTS_DIR, 'attack_results_pgd_summary.csv')
+
+        # Check if files exist
+        fgsm_exists = os.path.exists(fgsm_path)
+        pgd_exists = os.path.exists(pgd_path)
+
+        if not fgsm_exists and not pgd_exists:
+            return jsonify({'error': 'No FGSM or PGD results found. Please generate adversarial samples first.'}), 400
+
+        # Only include existing files
+        dfs = []
+        if fgsm_exists:
+            df_fgsm = pd.read_csv(fgsm_path)
+            dfs.append(df_fgsm)
+        else:
+            df_fgsm = None
+
+        if pgd_exists:
+            df_pgd = pd.read_csv(pgd_path)
+            dfs.append(df_pgd)
+        else:
+            df_pgd = None
+
+        # Combine the dataframes
+        if not dfs:
+            return jsonify({'error': 'No attack summary data available.'}), 400
+
+        # Import the visualisation tool here to avoid circular imports
+        from prototype.results_presentation.model_results import create_model_results_table
+
+        fig = create_model_results_table(df_fgsm, df_pgd)
+        output_path = os.path.join(STATIC_DIR, 'model_results_summary.png')
+        fig.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.5, facecolor='white')
+
+        return jsonify({'image_path': '/static/model_results_summary.png'})
+
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
