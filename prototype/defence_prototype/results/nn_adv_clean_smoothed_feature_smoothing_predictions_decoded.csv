@@ -10247,7 +10247,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,5,Benign,Emotet
-2,2,Benign,Benign
+2,5,Benign,Emotet
 2,8,Benign,Pysa
 2,5,Benign,Emotet
 2,5,Benign,Emotet
@@ -16703,7 +16703,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,8,Benign,Pysa
-2,2,Benign,Benign
+2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,8,Benign,Pysa
@@ -17388,7 +17388,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 2,5,Benign,Emotet
 2,8,Benign,Pysa
 2,5,Benign,Emotet
-2,5,Benign,Emotet
+2,2,Benign,Benign
 2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,5,Benign,Emotet
@@ -17774,7 +17774,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 2,5,Benign,Emotet
 2,8,Benign,Pysa
 2,8,Benign,Pysa
-2,2,Benign,Benign
+2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,5,Benign,Emotet
 2,8,Benign,Pysa
@@ -19638,7 +19638,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 1,14,Ako,Transponder
 1,14,Ako,Transponder
 1,1,Ako,Ako
-1,1,Ako,Ako
+1,14,Ako,Transponder
 1,5,Ako,Emotet
 1,5,Ako,Emotet
 1,5,Ako,Emotet
@@ -22743,7 +22743,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 7,14,Maze,Transponder
 7,1,Maze,Ako
 7,1,Maze,Ako
-7,1,Maze,Ako
+7,14,Maze,Transponder
 7,5,Maze,Emotet
 7,5,Maze,Emotet
 7,5,Maze,Emotet

@@ -17,6 +17,24 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.tree import DecisionTreeClassifier
 
+import torch
+import torch.nn as nn
+import torch.optim as optim
+
+class SimpleNN(nn.Module):
+    def __init__(self, input_dim, output_dim):
+        super(SimpleNN, self).__init__()
+        self.model = nn.Sequential(
+            nn.Linear(input_dim, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, output_dim)
+        )
+
+    def forward(self, x):
+        return self.model(x)
+
 # Define base paths relative to prototype directory:
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 BASELINE_DATA_DIR = os.path.join(BASE_DIR, "baseline_models", "baseline_data")
@@ -135,7 +153,7 @@ def run_all_models(df, selected_models=None, progress_callback=None):
         pipeline = Pipeline([('scaler', StandardScaler()), ('clf', clf_obj)]) if scale_required else clf_obj
 
         if clf_name in param_grids:
-            grid = {f"clf__{k}" if scale_required else k: v for k, v in param_grids[clf_name].items()}  
+            grid = {f"clf__{k}" if scale_required else k: v for k, v in param_grids[clf_name].items()}
             search = GridSearchCV(
                 pipeline, grid, cv=GroupKFold(n_splits=5), scoring='accuracy', n_jobs=-1
             )
@@ -205,6 +223,32 @@ def run_all_models(df, selected_models=None, progress_callback=None):
     )
     joblib.dump(le_catname, os.path.join(MODEL_DIR, "label_encoder.pkl"))
     joblib.dump(X_train.columns.tolist(), os.path.join(MODEL_DIR, "feature_names.pkl"))
+
+    # Train and Save SimpleNN for adversarial defences
+    update_progress("Training standalone SimpleNN for adversarial defence...")
+
+    input_dim = X_train.shape[1]
+    num_classes = len(np.unique(y_train))
+    nn_model = SimpleNN(input_dim=input_dim, output_dim=num_classes)
+
+    X_tensor = torch.tensor(X_train.values, dtype=torch.float32)
+    y_tensor = torch.tensor(y_train.values, dtype=torch.long)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(nn_model.parameters(), lr=0.001)
+
+    for epoch in range(20):
+        nn_model.train()
+        optimizer.zero_grad()
+        outputs = nn_model(X_tensor)
+        loss = criterion(outputs, y_tensor)
+        loss.backward()
+        optimizer.step()
+        update_progress(f"SimpleNN Epoch {epoch + 1}/20 - Loss: {loss.item():.4f}")
+
+    nn_path = os.path.join(MODEL_DIR, "neural_net.pt")
+    torch.save(nn_model.state_dict(), nn_path)
+    update_progress(f"SimpleNN saved to {nn_path}")
 
     update_progress("All models trained and saved.")
     return {

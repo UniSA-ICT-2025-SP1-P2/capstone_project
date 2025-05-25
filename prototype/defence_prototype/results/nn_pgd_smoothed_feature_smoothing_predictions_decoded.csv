@@ -994,7 +994,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 4,0,Conti,180solutions
 13,2,TIBS,Benign
 0,0,180solutions,180solutions
-3,7,CWS,Maze
+3,0,CWS,180solutions
 10,2,Refroso,Benign
 8,2,Pysa,Benign
 11,2,Scar,Benign
@@ -4949,7 +4949,7 @@ true_label,predicted,true_label_decoded,predicted_decoded
 9,0,Reconyc,180solutions
 0,2,180solutions,Benign
 10,0,Refroso,180solutions
-8,2,Pysa,Benign
+8,10,Pysa,Refroso
 0,0,180solutions,180solutions
 14,0,Transponder,180solutions
 4,10,Conti,Refroso
