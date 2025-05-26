@@ -9,7 +9,13 @@ import sys
 import flask
 import shap
 import art
-from prototype.defence_prototype.src.train_models import train_models
+
+try:
+    from prototype.defence_prototype.src.train_models import train_models
+except ImportError as e:
+    print("⚠️ Warning: Could not import train_models:", e)
+    train_models = None
+
 
 
 #Add error handling for missing dependencies
