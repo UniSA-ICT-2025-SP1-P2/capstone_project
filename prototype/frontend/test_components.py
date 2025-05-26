@@ -7,11 +7,14 @@ from io import BytesIO
 import shutil
 import sys
 import flask
+import shap
+import art
+from prototype.defence_prototype.src.train_models import train_models
 
 
 #Add error handling for missing dependencies
 try:
-    from app import app
+    from .app import app
 except (ImportError, FileNotFoundError) as e:
     print(f"Warning: Could not import app due to missing dependencies. {e}")
     print("Some tests may not run correctly.")
