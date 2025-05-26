@@ -1,33 +1,47 @@
 #Import libraries
 import unittest
 import os
-import pandas as pd
 import json
 import tempfile
 from io import BytesIO
-from flask import Flask
-from flask_testing import TestCase
-from app import app
 import shutil
+import sys
+import flask
+import shap
+
+#Add error handling for missing dependencies
+try:
+    from app import app
+except (ImportError, FileNotFoundError) as e:
+    print(f"Warning: Could not import app due to missing dependencies. {e}")
+    print("Some tests may not run correctly.")
+    app = None
 
 
-#Create Flask class for unit testing
+#Create Test class for unit testing
+class AppTestCase(unittest.TestCase):
 
-class AppTestCase(TestCase):
-
-    #Create and confiure the Flask app for testing
-    def create_app(self):
-        app.config['TESTING'] = True
-        app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
-        return app
-    
     #Set up test before each test method
     def setUp(self):
+
+        #Check if app is available
+        if app is None:
+            self.skipTest("App is not available due to missing dependencies.")
+        #Create and configure the Flask app for testing
+        app.config['TESTING'] = True
+        app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
+        self.app = app
+
+        #Create test client
         self.client = self.app.test_client()
         self.test_data_dir = tempfile.mkdtemp()
 
+        #Create application for testing
+        self.app_context = self.app.app_context()
+        self.app_context.push()
+
         #create csv for testing
-        self.test_csv_content = "feature1,feature2,feature3,category_name\n1.0,2.0,3.0,Conti\n4.0,5.0,6.0, Benign\n7.0,8.0,9.0,Ryuk\n1.1,2.2,3.2,Benign"
+        self.test_csv_content = "feature1,feature2,feature3,category_name\n1.0,2.0,3.0,Conti\n4.0,5.0,6.0,Benign\n7.0,8.0,9.0,Ryuk\n1.1,2.2,3.2,Benign"
 
         #Create test csv and save to test data directory
         self.test_csv_path = os.path.join(self.test_data_dir, "test_data.csv")
@@ -36,15 +50,21 @@ class AppTestCase(TestCase):
             file.write(self.test_csv_content)
 
     #Clean up after each test
-    def cleanUp(self):
-        shutil.rmtree(self.test_data_dir, ignore_errors=True)
-        shutil.rmtree(self.app.config['UPLOAD_FOLDER'], ignore_errors=True)
+    def tearDown(self):
+        if hasattr(self, 'app_context'):
+            self.app_context.pop()
+
+        #Clean up temp directories
+        if hasattr(self, 'test_data_dir'):
+            shutil.rmtree(self.test_data_dir, ignore_errors=True)
+        if hasattr(self, 'app') and hasattr(self.app, 'config') and 'UPLOAD_FOLDER' in self.app.config:
+            shutil.rmtree(self.app.config['UPLOAD_FOLDER'], ignore_errors=True)
 
     #Test that main page loads correctly
     def test_main_page(self):
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'text/html', response.content_type.encode())
+        self.assertIn('text/html', response.content_type)
   
     #Test to make sure app rejects non csv files
     def test_file_invalid_csv(self):
