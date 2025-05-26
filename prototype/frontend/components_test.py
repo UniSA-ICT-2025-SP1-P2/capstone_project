@@ -7,7 +7,7 @@ from io import BytesIO
 import shutil
 import sys
 import flask
-import shap
+
 
 #Add error handling for missing dependencies
 try:
