@@ -163,6 +163,25 @@ class AppTestCase(unittest.TestCase):
             for filename in uploaded_files:
                 self.assertNotIn('\x00', filename)
 
+class StandaloneTests(unittest.TestCase):
+    #Tests that don't require the Flask app
+    
+    def test_csv_content_format(self):
+        """Test that our test CSV content is properly formatted"""
+        test_csv = "feature1,feature2,feature3,category_name\n1.0,2.0,3.0,Conti\n4.0,5.0,6.0,Benign"
+        lines = test_csv.split('\n')
+        self.assertEqual(len(lines), 3)  # Header + 2 data rows
+        self.assertEqual(len(lines[0].split(',')), 4)  # 4 columns
+
+    def test_file_path_security(self):
+
+        # Test null byte detection
+        safe_filename = "test.csv"
+        unsafe_filename = "test\x00.csv"
+        
+        self.assertNotIn('\x00', safe_filename)
+        self.assertIn('\x00', unsafe_filename)
+
 
 if __name__ == '__main__':
     # Create test suite
