@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, send_file
+from flask import Flask, request, jsonify, render_template
 from sklearn.metrics import classification_report
 import os
 import pandas as pd
@@ -190,7 +190,6 @@ def upload_file():
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/generate_adversarial', methods=['POST'])
 def generate_adversarial():
     """Generate adversarial examples using FGSM or PGD attacks"""
@@ -363,8 +362,6 @@ def apply_defences():
             try:
                 noise_std = float(request.form.get('noise_std', 0.02))
                 input_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset.csv')
-                if not os.path.exists(input_path):
-                    input_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
 
                 output_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset_smoothed.csv')
                 feature_smoothing.apply_feature_smoothing_path(
@@ -393,10 +390,10 @@ def apply_defences():
                 )
                 responses.append(f'✅ Adversarial Training completed with {epochs} epochs and model updated.')
 
-                # === Evaluate nn_adv on clean test set ===
+                # === Evaluate nn_adv on full dataset ===
                 try:
-                    test_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
-                    df = pd.read_csv(test_path)
+                    full_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset.csv')
+                    df = pd.read_csv(full_path)
 
                     label_encoder = joblib.load(os.path.join(MODEL_DIR, 'label_encoder.pkl'))
                     feature_names = joblib.load(os.path.join(MODEL_DIR, 'feature_names.pkl'))
@@ -429,6 +426,13 @@ def apply_defences():
                         updated = results_df
                     updated.to_csv(results_csv_path, index=False)
 
+                    # ✅ Copy to visualisation directory
+                    import shutil
+                    shutil.copyfile(
+                        results_csv_path,
+                        os.path.join(BASE_DIR, 'defence_prototype', 'results', 'defence_results.csv')
+                    )
+
                     evaluation_reports['nn_adv'] = {
                         "accuracy": result.get("accuracy"),
                         "f1_score": result.get("f1_score"),
@@ -441,7 +445,7 @@ def apply_defences():
                         "shap_values": {}
                     }
 
-                    responses.append(f"📊 nn_adv Accuracy: {result['accuracy']:.4f}, F1: {result['f1_score']:.4f}")
+                    responses.append(f"📊 Adversarial Trained Model Accuracy: {result['accuracy']:.4f}, F1: {result['f1_score']:.4f}")
                 except Exception as e:
                     responses.append(f"⚠️ Evaluation of adversarial training failed: {str(e)}")
 
@@ -454,7 +458,7 @@ def apply_defences():
             try:
                 chunk_size = int(request.form.get('chunk_size', 500))
                 threshold = float(request.form.get('threshold', 0.7))
-                input_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
+                input_path = os.path.join(DATA_DIR, 'uploaded_dataset_label.csv')
 
                 feature_names = joblib.load(os.path.join(MODEL_DIR, 'feature_names.pkl'))
                 df = pd.read_csv(input_path)
@@ -474,6 +478,13 @@ def apply_defences():
                     threshold=threshold,
                     results_dir=OUTPUT_DIR
                 )
+
+                # ✅ Copy concept drift output to where the visualisation expects it
+                import shutil
+                src = os.path.join(OUTPUT_DIR, 'concept_drift_results.csv')
+                dst = os.path.join(BASE_DIR, 'defence_prototype', 'results', 'concept_drift_results.csv')
+                shutil.copyfile(src, dst)
+
                 responses.append(f'🧠 Concept Drift applied with chunk size {chunk_size} and threshold {threshold}.')
             except Exception as e:
                 print(f"Error during concept drift: {str(e)}")
@@ -482,10 +493,7 @@ def apply_defences():
         # === Ensemble Learning ===
         if 'ensemble_learning' in selected:
             try:
-                data_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset_smoothed.csv')
-                if not os.path.exists(data_path):
-                    data_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
-
+                data_path = os.path.join(OUTPUT_DIR, 'uploaded_dataset.csv')
                 ensemble_result = ensemble_learning.run_ensemble_evaluation(
                     data_path=data_path,
                     model_dir=MODEL_DIR
@@ -498,7 +506,6 @@ def apply_defences():
                 responses.append(f'❌ Ensemble Learning failed: {str(e)}')
 
         # === Final Filtering ===
-        # Always return original models (baseline evaluation)
         baseline_models = ["RandomForest", "KNN", "LogisticRegression", "DecisionTree", "SVM"]
         filtered_eval = {k: v for k, v in evaluation_reports.items() if k in baseline_models}
 
@@ -510,6 +517,7 @@ def apply_defences():
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/evaluate_models', methods=['POST'])
 def evaluate_models_route():
@@ -600,49 +608,59 @@ def run_defence_results():
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
+
 @app.route('/run_model_results', methods=['GET'])
 def run_model_results():
-    """Generate and return model results summary chart"""
+    """Generate and return model results summary chart without displaying via plt"""
     try:
-        fgsm_path = os.path.join(ATTACK_RESULTS_DIR, 'attack_results_fgsm_summary.csv')
-        pgd_path = os.path.join(ATTACK_RESULTS_DIR, 'attack_results_pgd_summary.csv')
+        import os
+        import pandas as pd
+        import traceback
+        from results_presentation import model_results
 
-        # Check if files exist
-        fgsm_exists = os.path.exists(fgsm_path)
-        pgd_exists = os.path.exists(pgd_path)
+        # Define expected file paths
+        fgsm_path = os.path.join(BASE_DIR, "attack_simulation_results", "attack_results_fgsm_summary.csv")
+        pgd_path = os.path.join(BASE_DIR, "attack_simulation_results", "attack_results_pgd_summary.csv")
 
-        if not fgsm_exists and not pgd_exists:
-            return jsonify({'error': 'No FGSM or PGD results found. Please generate adversarial samples first.'}), 400
+        # Check file existence
+        if not os.path.exists(fgsm_path):
+            return jsonify({'error': f'FGSM file not found at: {fgsm_path}'}), 400
+        if not os.path.exists(pgd_path):
+            return jsonify({'error': f'PGD file not found at: {pgd_path}'}), 400
 
-        # Only include existing files
-        dfs = []
-        if fgsm_exists:
-            df_fgsm = pd.read_csv(fgsm_path)
-            dfs.append(df_fgsm)
-        else:
-            df_fgsm = None
+        # Patch load_csv_data to return the correct DataFrames
+        def patched_load_csv_data():
+            try:
+                df_fgsm = pd.read_csv(fgsm_path)
+                df_pgd = pd.read_csv(pgd_path)
+                return df_fgsm, df_pgd
+            except Exception as e:
+                print(f"Error loading CSV data: {e}")
+                return None, None
 
-        if pgd_exists:
-            df_pgd = pd.read_csv(pgd_path)
-            dfs.append(df_pgd)
-        else:
-            df_pgd = None
+        # Temporarily override the original
+        original_loader = model_results.load_csv_data
+        model_results.load_csv_data = patched_load_csv_data
 
-        # Combine the dataframes
-        if not dfs:
-            return jsonify({'error': 'No attack summary data available.'}), 400
+        try:
+            # Generate the matplotlib figure
+            fig = model_results.create_model_results_table()
 
-        # Import the visualisation tool here to avoid circular imports
-        from prototype.results_presentation.model_results import create_model_results_table
+            if fig is None:
+                return jsonify({'error': 'Failed to generate the figure'}), 500
 
-        fig = create_model_results_table(df_fgsm, df_pgd)
-        output_path = os.path.join(STATIC_DIR, 'model_results_summary.png')
-        fig.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.5, facecolor='white')
+            # Save the figure as an image file (skip plt.show() and plt.close())
+            output_path = os.path.join(STATIC_DIR, 'model_results_summary.png')
+            fig.savefig(output_path, dpi=300, bbox_inches='tight', pad_inches=0.5, facecolor='white')
 
-        return jsonify({'image_path': '/static/model_results_summary.png'})
+            return jsonify({'image_path': '/static/model_results_summary.png'})
+
+        finally:
+            # Restore original function
+            model_results.load_csv_data = original_loader
 
     except Exception as e:
-        print(traceback.format_exc())
+        print("Detailed error:", traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
