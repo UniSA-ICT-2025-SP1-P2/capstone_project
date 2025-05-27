@@ -362,8 +362,6 @@ def apply_defences():
             try:
                 noise_std = float(request.form.get('noise_std', 0.02))
                 input_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset.csv')
-                if not os.path.exists(input_path):
-                    input_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
 
                 output_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset_smoothed.csv')
                 feature_smoothing.apply_feature_smoothing_path(
@@ -392,10 +390,10 @@ def apply_defences():
                 )
                 responses.append(f'✅ Adversarial Training completed with {epochs} epochs and model updated.')
 
-                # === Evaluate nn_adv on clean test set ===
+                # === Evaluate nn_adv on full dataset ===
                 try:
-                    test_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
-                    df = pd.read_csv(test_path)
+                    full_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset.csv')
+                    df = pd.read_csv(full_path)
 
                     label_encoder = joblib.load(os.path.join(MODEL_DIR, 'label_encoder.pkl'))
                     feature_names = joblib.load(os.path.join(MODEL_DIR, 'feature_names.pkl'))
@@ -495,10 +493,7 @@ def apply_defences():
         # === Ensemble Learning ===
         if 'ensemble_learning' in selected:
             try:
-                data_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset_smoothed.csv')
-                if not os.path.exists(data_path):
-                    data_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
-
+                data_path = os.path.join(OUTPUT_DIR, 'uploaded_dataset.csv')
                 ensemble_result = ensemble_learning.run_ensemble_evaluation(
                     data_path=data_path,
                     model_dir=MODEL_DIR
@@ -511,7 +506,6 @@ def apply_defences():
                 responses.append(f'❌ Ensemble Learning failed: {str(e)}')
 
         # === Final Filtering ===
-        # Always return original models (baseline evaluation)
         baseline_models = ["RandomForest", "KNN", "LogisticRegression", "DecisionTree", "SVM"]
         filtered_eval = {k: v for k, v in evaluation_reports.items() if k in baseline_models}
 
@@ -523,6 +517,7 @@ def apply_defences():
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/evaluate_models', methods=['POST'])
 def evaluate_models_route():
