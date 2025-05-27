@@ -9,23 +9,61 @@ import sys
 import flask
 import shap
 import art
+import importlib.util
 
+# Add the current directory and parent directories to Python path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
+# Try multiple import strategies for the app
+app = None
 try:
-    from prototype.defence_prototype.src.train_models import train_models
-except ImportError as e:
-    print("⚠️ Warning: Could not import train_models:", e)
-    train_models = None
-
-
-
-#Add error handling for missing dependencies
-try:
+    # Try relative import first
     from .app import app
-except (ImportError, FileNotFoundError) as e:
-    print(f"Warning: Could not import app due to missing dependencies. {e}")
-    print("Some tests may not run correctly.")
-    app = None
+except (ImportError, ValueError):
+    try:
+        # Try direct import
+        from app import app
+    except ImportError:
+        try:
+            # Try importing from current directory
+            import app as app_module
+            app = app_module.app
+        except ImportError as e:
+            print(f"Warning: Could not import app: {e}")
+            print("Please ensure app.py is in the correct location")
 
+# Handle optional dependencies
+optional_imports = {}
+try:
+    import shap
+    optional_imports['shap'] = shap
+except ImportError:
+    print("Warning: SHAP not available")
+
+try:
+    import art
+    optional_imports['art'] = art
+except ImportError:
+    print("Warning: art not available")
+
+# Handle train_models import more gracefully
+train_models = None
+try:
+    from prototype.defence_prototype.src import train_models
+except ImportError:
+    try:
+        # Try alternative import paths
+        import train_models
+    except ImportError:
+        try:
+            from src import train_models
+        except ImportError:
+            print("ℹ️ Info: train_models not available - model training tests will be skipped")
 
 #Create Test class for unit testing
 class AppTestCase(unittest.TestCase):
