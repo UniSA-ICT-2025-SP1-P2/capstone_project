@@ -33,7 +33,7 @@ def run_ensemble_evaluation(data_path, model_dir):
     label_encoder = joblib.load(os.path.join(model_dir, 'label_encoder.pkl'))
     y_true_encoded = label_encoder.transform(y_true)
 
-    rf = joblib.load(os.path.join(model_dir, 'random_forest.pkl'))
+    rf = joblib.load(os.path.join(model_dir, 'RandomForest_model.pkl'))
     rf_probs = rf.predict_proba(X)
 
     input_dim = X.shape[1]
