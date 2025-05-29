@@ -26,7 +26,7 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 #Load data from csv
 def load_csv_data():
     """
-    Load data from a CSV file in the same GitHub folder.
+    Load data from a CSV file in the defence prototype results directory
     
     Parameters:
     filename (str): Name of the CSV file to read, defaults to 'defence_results.csv'

@@ -54,7 +54,7 @@ except ImportError:
 # Handle train_models import more gracefully
 train_models = None
 try:
-    from prototype.defence_prototype.src import train_models
+    from defence_prototype.src import train_models
 except ImportError:
     try:
         # Try alternative import paths
@@ -182,6 +182,56 @@ class StandaloneTests(unittest.TestCase):
         self.assertNotIn('\x00', safe_filename)
         self.assertIn('\x00', unsafe_filename)
 
+class ModelIntegrationTestCase(unittest.TestCase):
+    """Integration tests that require model files to exist"""
+    
+    #Set up test before each test method
+    def setUp(self):
+
+        #Check if app is available
+        if app is None:
+            self.skipTest("App is not available due to missing dependencies.")
+        #Create and configure the Flask app for testing
+        app.config['TESTING'] = True
+        app.config['UPLOAD_FOLDER'] = tempfile.mkdtemp()
+        self.app = app
+
+        #Create test client
+        self.client = self.app.test_client()
+        self.test_data_dir = tempfile.mkdtemp()
+
+        #Create application for testing
+        self.app_context = self.app.app_context()
+        self.app_context.push()
+
+
+    #Clean up after each test
+    def tearDown(self):
+        if hasattr(self, 'app_context'):
+            self.app_context.pop()
+
+        #Clean up temp directories
+        if hasattr(self, 'test_data_dir'):
+            shutil.rmtree(self.test_data_dir, ignore_errors=True)
+        if hasattr(self, 'app') and hasattr(self.app, 'config') and 'UPLOAD_FOLDER' in self.app.config:
+            shutil.rmtree(self.app.config['UPLOAD_FOLDER'], ignore_errors=True)
+    
+    @unittest.skipUnless(
+        os.path.exists("../baseline_models/trained_baseline_models"), 
+        "Model directory not found"
+    )
+    def test_model_loading(self):
+        """Test that models can be loaded successfully"""
+        from app import load_models
+        models = load_models()
+        
+        # Check that at least some models were loaded
+        self.assertGreater(len(models), 0)
+        
+        # Check that models have the expected interface
+        for model_name, model in models.items():
+            self.assertTrue(hasattr(model, 'predict'))
+
 
 if __name__ == '__main__':
     # Create test suite
@@ -189,6 +239,8 @@ if __name__ == '__main__':
     
     # Add basic functionality tests
     suite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(AppTestCase))
+    suite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(StandaloneTests))
+    suite.addTest(unittest.defaultTestLoader.loadTestsFromTestCase(ModelIntegrationTestCase))
     
     # Run tests
     runner = unittest.TextTestRunner(verbosity=2)
