@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify, render_template
-from sklearn.metrics import classification_report
 import os
 import pandas as pd
 import traceback
@@ -10,10 +9,9 @@ import numpy as np
 from prototype.baseline_models.baseline_models_webUI import run_all_models, find_category_name, \
     evaluate_models as evaluate_adversarial_models
 from prototype.attack_simulation.attack_sim import run_attack_simulation, run_pgd_attack_simulation, \
-    generate_adversarial_samples_for_retraining
+    generate_adversarial_samples_for_retraining, generate_pgd_samples_for_retraining
 from prototype.results_presentation.concept_drift_presentation import visualize_concept_drift
 from prototype.results_presentation.defence_results_presentation import create_advanced_performance_comparison
-from prototype.results_presentation.model_results import load_csv_data, create_model_results_table
 from prototype.defence_prototype.src.defences import adversarial_training, feature_smoothing, ensemble_learning, \
     concept_drift
 from prototype.defence_prototype.src.evaluate_defences import run_evaluation
@@ -121,9 +119,15 @@ def upload_file():
 
         # Save the original uploaded dataset, but drop 'Class' only in the saved file
         saved_df = df.drop(columns=['Class'], errors='ignore')  # Keep 'df' in memory untouched
-        original_data_path = os.path.join(BASE_DIR, "baseline_models", "baseline_data", "uploaded_dataset.csv")
-        saved_df.to_csv(original_data_path, index=False)
-        print(f"📁 Original uploaded dataset saved to: {original_data_path} (without 'Class')")
+
+        # Path 1: Save in baseline_data
+        baseline_path = os.path.join(BASE_DIR, "baseline_models", "baseline_data", "uploaded_dataset.csv")
+        saved_df.to_csv(baseline_path, index=False)
+
+        # Path 2: Save in attack_simulation_results
+        attack_path = os.path.join(OUTPUT_DIR, "uploaded_dataset.csv")
+        saved_df.to_csv(attack_path, index=False)
+        print(f"📁 Uploaded dataset saved to:\n  - {baseline_path}\n  - {attack_path} (both without 'Class')")
 
         results = run_all_models(df, selected_models=selected_models)
 
@@ -302,19 +306,30 @@ def generate_adversarial():
 
         print(f"📝 Saved merged dataset as: {latest_merged_path}")
 
-        # === Save training-ready FGSM samples for adversarial_training.py ===
+        # === Save training-ready adversarial samples for adversarial_training.py ===
         try:
-            retrain_df = generate_adversarial_samples_for_retraining(
-                model=models[source_model],
-                X=X_test,
-                y=y_test_original,
-                epsilon=epsilon,
-                n_samples=100,
-                target_class="Benign",
-            )
-            print("✅ Saved adversarial_fgsm.csv for retraining.")
+            if attack_type == 'fgsm':
+                retrain_df = generate_adversarial_samples_for_retraining(
+                    model=models[source_model],
+                    X=X_test,
+                    y=y_test_original,
+                    epsilon=epsilon,
+                    n_samples=100,
+                )
+                print("✅ Saved adversarial_fgsm.csv for retraining.")
+
+            elif attack_type == 'pgd':
+                retrain_df = generate_pgd_samples_for_retraining(
+                    model=models[source_model],
+                    X=X_test,
+                    y=y_test_original,
+                    epsilon=epsilon,
+                    n_samples=100,
+                )
+                print("✅ Saved adversarial_pgd.csv for retraining.")
+
         except Exception as e:
-            print(f"⚠️ Failed to save adversarial_fgsm.csv for retraining: {str(e)}")
+            print(f"⚠️ Failed to save adversarial training file: {str(e)}")
 
         # Evaluate models directly using the helper
         combined_df["Category"] = combined_df["label"]  # Required for evaluator
@@ -490,20 +505,35 @@ def apply_defences():
                 print(f"Error during concept drift: {str(e)}")
                 responses.append(f'❌ Concept Drift failed: {str(e)}')
 
-        # === Ensemble Learning ===
-        if 'ensemble_learning' in selected:
-            try:
-                data_path = os.path.join(OUTPUT_DIR, 'uploaded_dataset.csv')
-                ensemble_result = ensemble_learning.run_ensemble_evaluation(
-                    data_path=data_path,
-                    model_dir=MODEL_DIR
-                )
+                # === Ensemble Learning ===
+                if 'ensemble_learning' in selected:
+                    try:
+                        data_path = os.path.join(OUTPUT_DIR, 'uploaded_dataset.csv')
+                        df = pd.read_csv(data_path)
 
-                acc = ensemble_result.get("accuracy", 0)
-                responses.append(f'🧩 Ensemble Learning applied (Accuracy: {acc:.2f}).')
-            except Exception as e:
-                print(f"Error during ensemble learning: {str(e)}")
-                responses.append(f'❌ Ensemble Learning failed: {str(e)}')
+                        if 'label' not in df.columns:
+                            if 'category_name' in df.columns:
+                                df['label'] = df['category_name']
+                            elif 'Category' in df.columns:
+                                df['label'] = df['Category'].apply(find_category_name)
+                            elif 'Class' in df.columns:
+                                df['label'] = df['Class']
+                            else:
+                                df['label'] = 'Unknown'
+
+                            # Save updated dataset with label
+                            df.to_csv(data_path, index=False)
+
+                        ensemble_result = ensemble_learning.run_ensemble_evaluation(
+                            data_path=data_path,
+                            model_dir=MODEL_DIR
+                        )
+
+                        acc = ensemble_result.get("accuracy", 0)
+                        responses.append(f'🧩 Ensemble Learning applied (Accuracy: {acc:.2f}).')
+                    except Exception as e:
+                        print(f"Error during ensemble learning: {str(e)}")
+                        responses.append(f'❌ Ensemble Learning failed: {str(e)}')
 
         # === Final Filtering ===
         baseline_models = ["RandomForest", "KNN", "LogisticRegression", "DecisionTree", "SVM"]
