@@ -12,7 +12,6 @@ from prototype.baseline_models.baseline_models_webUI import run_all_models, find
 from prototype.attack_simulation.attack_sim import run_attack_simulation, run_pgd_attack_simulation, \
     generate_adversarial_samples_for_retraining, generate_pgd_samples_for_retraining
 from prototype.results_presentation.concept_drift_presentation import visualize_concept_drift
-from prototype.results_presentation.defence_results_presentation import create_advanced_performance_comparison
 from prototype.defence_prototype.src.defences import adversarial_training, feature_smoothing, ensemble_learning, \
     concept_drift
 from prototype.defence_prototype.src.evaluate_defences import run_evaluation
@@ -30,6 +29,8 @@ DEFENCE_DIR = os.path.join(BASE_DIR, "defence_prototype")
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 ATTACK_RESULTS_DIR = os.path.join(BASE_DIR, 'attack_simulation', 'attack_simulation_results')
 ADVERSARIAL_DATA_DIR = os.path.join(BASE_DIR, "data")
+RESULTS_DIR = os.path.join(BASE_DIR, 'defence_prototype', 'results')
+os.makedirs(RESULTS_DIR, exist_ok=True)
 
 # Create necessary directories
 for directory in [OUTPUT_DIR, STATIC_DIR]:
@@ -392,100 +393,15 @@ def generate_adversarial():
 
 @app.route('/apply_defences', methods=['POST'])
 def apply_defences():
-    """Apply selected defense mechanisms to the models/data"""
+    """Apply selected defenses, then evaluate all models and generate defence_results"""
     try:
         selected = request.form.getlist('defences')
         if not selected:
             return jsonify({'message': 'No defenses selected.'}), 400
 
         responses = []
-        evaluation_reports = {}
 
-        # === Run Baseline Evaluation (None Defence) ===
-        try:
-            clean_data_path = os.path.join(DATA_DIR, 'Test_Dataset.csv')
-            if os.path.exists(clean_data_path):
-                df = pd.read_csv(clean_data_path)
-                label_encoder = joblib.load(os.path.join(MODEL_DIR, 'label_encoder.pkl'))
-                feature_names = joblib.load(os.path.join(MODEL_DIR, 'feature_names.pkl'))
-
-                y_true = label_encoder.transform(df['category_name'])  # adjust if needed
-                X = df[feature_names].values
-
-                from prototype.defence_prototype.src.evaluate_defences import evaluate
-                results = []
-                for model_type in ['rf', 'nn', 'nn_adv', 'ensemble']:
-                    result = evaluate(
-                        X, y_true, model_type, defence_name='none', data_type='none',
-                        label_encoder=label_encoder, results_dir=OUTPUT_DIR
-                    )
-                    results.append(result)
-                    print(
-                        f"📊 Baseline Evaluation: {model_type} - Acc: {result['accuracy']:.4f}, F1: {result['f1_score']:.4f}")
-
-                # Save results
-                results_csv_path = os.path.join(OUTPUT_DIR, 'defence_results.csv')
-                df_results = pd.DataFrame(results)
-                if os.path.exists(results_csv_path):
-                    existing = pd.read_csv(results_csv_path)
-                    updated = pd.concat([existing, df_results], ignore_index=True)
-                else:
-                    updated = df_results
-                updated.to_csv(results_csv_path, index=False)
-
-                import shutil
-                shutil.copyfile(
-                    results_csv_path,
-                    os.path.join(BASE_DIR, 'defence_prototype', 'results', 'defence_results.csv')
-                )
-
-        except Exception as e:
-            print(f"❌ Failed to run baseline evaluation: {str(e)}")
-            responses.append(f"❌ Baseline evaluation failed: {str(e)}")
-
-        def evaluate_all_models_for_defence(data_path, defence_name, data_type, label_col='label'):
-            try:
-                df = pd.read_csv(data_path)
-                label_encoder = joblib.load(os.path.join(MODEL_DIR, 'label_encoder.pkl'))
-                feature_names = joblib.load(os.path.join(MODEL_DIR, 'feature_names.pkl'))
-
-                if label_col not in df.columns:
-                    raise ValueError(f"Expected label column '{label_col}' not found in dataset.")
-
-                y_true = label_encoder.transform(df[label_col])
-                X = df[feature_names].values
-
-                from prototype.defence_prototype.src.evaluate_defences import evaluate
-                results = []
-                for model_type in ['rf', 'nn', 'nn_adv', 'ensemble']:
-                    result = evaluate(
-                        X, y_true, model_type, defence_name, data_type, label_encoder, OUTPUT_DIR
-                    )
-                    results.append(result)
-
-                    print(f"📊 {defence_name.title()} Evaluation: {result['model']} - "
-                          f"Acc: {result['accuracy']:.4f}, F1: {result['f1_score']:.4f}")
-
-                results_csv_path = os.path.join(OUTPUT_DIR, 'defence_results.csv')
-                results_df = pd.DataFrame(results)
-                if os.path.exists(results_csv_path):
-                    existing = pd.read_csv(results_csv_path)
-                    updated = pd.concat([existing, results_df], ignore_index=True)
-                else:
-                    updated = results_df
-                updated.to_csv(results_csv_path, index=False)
-
-                import shutil
-                shutil.copyfile(
-                    results_csv_path,
-                    os.path.join(BASE_DIR, 'defence_prototype', 'results', 'defence_results.csv')
-                )
-
-                return []
-            except Exception as e:
-                print(f"⚠️ Evaluation for {defence_name} failed: {str(e)}")
-                return []
-
+        # === Step 1: Apply Selected Defences ===
         if 'feature_smoothing' in selected:
             try:
                 noise_std = float(request.form.get('noise_std', 0.02))
@@ -498,40 +414,21 @@ def apply_defences():
                     output_path=output_path
                 )
                 responses.append(f'✅ Feature Smoothing applied with noise level {noise_std}')
-
-                eval_msgs = evaluate_all_models_for_defence(
-                    data_path=output_path,
-                    defence_name='feature_smoothing',
-                    data_type='clean_smoothed'
-                )
-                responses.extend(eval_msgs)
-
             except Exception as e:
-                print(f"Error applying feature smoothing: {str(e)}")
                 responses.append(f'❌ Feature Smoothing failed: {str(e)}')
 
         if 'adversarial_training' in selected:
             try:
                 epochs = int(request.form.get('epochs', 10))
                 lr = float(request.form.get('lr', 0.001))
-
                 adversarial_training.run_adversarial_training(
                     data_dir=ADVERSARIAL_DATA_DIR,
                     model_dir=MODEL_DIR,
                     epochs=epochs,
                     lr=lr
                 )
-                responses.append(f'✅ Adversarial Training completed with {epochs} epochs and model updated.')
-
-                full_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset.csv')
-                responses += evaluate_all_models_for_defence(
-                    data_path=full_path,
-                    defence_name='adversarial_training',
-                    data_type='clean'
-                )
-
+                responses.append(f'✅ Adversarial Training completed with {epochs} epochs.')
             except Exception as e:
-                print(f"Error during adversarial training: {str(e)}")
                 responses.append(f'❌ Adversarial Training failed: {str(e)}')
 
         if 'concept_drift' in selected:
@@ -542,12 +439,10 @@ def apply_defences():
 
                 feature_names = joblib.load(os.path.join(MODEL_DIR, 'feature_names.pkl'))
                 df = pd.read_csv(input_path)
-
                 if 'label' not in df.columns:
                     raise ValueError("Expected 'label' column not found in dataset.")
 
                 df_filtered = df[feature_names + ['label']]
-
                 filtered_path = os.path.join(OUTPUT_DIR, 'concept_drift_cleaned.csv')
                 df_filtered.to_csv(filtered_path, index=False)
 
@@ -559,108 +454,65 @@ def apply_defences():
                     results_dir=OUTPUT_DIR
                 )
 
-                import shutil
-                src = os.path.join(OUTPUT_DIR, 'concept_drift_results.csv')
-                dst = os.path.join(BASE_DIR, 'defence_prototype', 'results', 'concept_drift_results.csv')
-                shutil.copyfile(src, dst)
-
                 responses.append(f'🧠 Concept Drift applied with chunk size {chunk_size} and threshold {threshold}.')
-                responses += evaluate_all_models_for_defence(
-                    data_path=filtered_path,
-                    defence_name='concept_drift',
-                    data_type='concept_drift'
-                )
             except Exception as e:
-                print(f"Error during concept drift: {str(e)}")
                 responses.append(f'❌ Concept Drift failed: {str(e)}')
 
         if 'ensemble_learning' in selected:
             try:
-                original_data_path = os.path.join(
-                    BASE_DIR, 'baseline_models', 'baseline_data', 'uploaded_dataset_label.csv'
-                )
-
-                df = pd.read_csv(original_data_path)
-
-                if 'label' not in df.columns:
-                    raise ValueError("Expected 'label' column not found in dataset.")
-
-                if df['label'].dtype != object:
-                    label_encoder = joblib.load(os.path.join(MODEL_DIR, 'label_encoder.pkl'))
-                    df['label'] = label_encoder.inverse_transform(df['label'])
-
+                input_path = os.path.join(BASE_DIR, 'baseline_models', 'baseline_data', 'uploaded_dataset_label.csv')
+                df = pd.read_csv(input_path)
                 temp_path = os.path.join(OUTPUT_DIR, 'uploaded_dataset_temp.csv')
                 df.to_csv(temp_path, index=False)
 
-                ensemble_result = ensemble_learning.run_ensemble_evaluation(
-                    data_path=temp_path,
-                    model_dir=MODEL_DIR
-                )
-
-                acc = ensemble_result.get("accuracy", 0)
+                result = ensemble_learning.run_ensemble_evaluation(data_path=temp_path, model_dir=MODEL_DIR)
+                acc = result.get("accuracy", 0)
                 responses.append(f'🧩 Ensemble Learning applied (Accuracy: {acc:.2f}).')
-                responses += evaluate_all_models_for_defence(
-                    data_path=temp_path,
-                    defence_name='ensemble_learning',
-                    data_type='ensemble'
-                )
 
                 if os.path.exists(temp_path):
                     os.remove(temp_path)
-
             except Exception as e:
-                print(f"Error during ensemble learning: {str(e)}")
                 responses.append(f'❌ Ensemble Learning failed: {str(e)}')
 
-        allowed_models = ["rf", "nn", "nn_adv", "ensemble"]
-        filtered_eval = {k: v for k, v in evaluation_reports.items() if k in allowed_models}
+        # === Step 2: Evaluate Models on All Available Datasets ===
+        try:
+            from prototype.defence_prototype.src.evaluate_defences import run_evaluation
 
-        return jsonify({
-            'message': responses
-        })
+            data_files = {
+                'clean': os.path.join(BASE_DIR, 'data', 'uploaded_dataset_label.csv'),
+                'fgsm': os.path.join(BASE_DIR, 'data', 'adversarial_fgsm_label.csv'),
+                'pgd': os.path.join(BASE_DIR, 'data', 'adversarial_pgd_label.csv'),
+            }
 
-    except Exception as e:
-        print(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+            # Filter out any missing files
+            data_files = {k: v for k, v in data_files.items() if os.path.exists(v)}
 
-@app.route('/evaluate_models', methods=['POST'])
-def evaluate_models_route():
-    """Evaluate models on different datasets (clean/adversarial/smoothed)"""
-    try:
-        # Define all available datasets
-        data_files = {
-            'clean': os.path.join(DATA_DIR, 'uploaded_dataset.csv'),
-            'fgsm': os.path.join(DATA_DIR, 'adversarial_fgsm_label.csv'),
-            'pgd': os.path.join(DATA_DIR, 'adversarial_pgd_label.csv'),
-        }
-
-        # Print which datasets exist
-        for key, path in data_files.items():
-            if os.path.exists(path):
-                print(f"✅ Found dataset: {key} → {path}")
+            if not data_files:
+                responses.append("⚠️ No valid datasets found for evaluation.")
             else:
-                print(f"⚠️ Missing dataset: {key} → {path}")
+                try:
+                    results_path = os.path.join(RESULTS_DIR, 'defence_results.csv')
+                    if os.path.exists(results_path):
+                        os.remove(results_path)
 
-        # Filter only those that actually exist
-        data_files = {k: v for k, v in data_files.items() if os.path.exists(v)}
+                    for name, path in data_files.items():
+                        df = pd.read_csv(path)
+                        print(f"✅ {name} dataset loaded: {path} → {len(df)} rows")
 
-        if not data_files:
-            return jsonify({'error': 'No valid datasets found for evaluation'}), 400
+                    run_evaluation(
+                        data_files=data_files,
+                        model_types=['rf', 'nn', 'nn_adv', 'ensemble'],
+                        defences=['none', 'feature_smoothing']
+                    )
 
-        # Run evaluation
-        results = run_evaluation(
-            data_files=data_files,
-            model_types=['rf', 'nn', 'nn_adv', 'ensemble'],
-            defences=['none', 'feature_smoothing']
-        )
+                except Exception as e:
+                    responses.append(f"❌ Evaluation or visualisation failed: {str(e)}")
 
-        # Return results as JSON
-        results_json = results.to_dict(orient='records')
-        return jsonify({
-            'message': f'Evaluated models on {len(data_files)} datasets',
-            'datasets_used': list(data_files.keys()),
-            'evaluation': results_json
-        })
+        except Exception as e:
+            print(traceback.format_exc())
+            responses.append(f"❌ Unexpected evaluation error: {str(e)}")
+
+        return jsonify({'message': responses})
 
     except Exception as e:
         print(traceback.format_exc())
@@ -689,49 +541,22 @@ def run_concept_drift():
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
-
 @app.route('/run_defence_results', methods=['GET'])
 def run_defence_results():
-    """Generate and return defence results summary chart"""
+    """Run and return defence results visualisation"""
     try:
-        full_path = os.path.join(BASE_DIR, 'defence_prototype', 'results', 'defence_results.csv')
-        if not os.path.exists(full_path):
-            return jsonify({'error': 'Defence results CSV not found'}), 500
+        # Call the visualisation function directly
+        from prototype.results_presentation.defence_results_presentation import create_advanced_performance_comparison
+        fig = create_advanced_performance_comparison()
 
-        # Step 1: Load full CSV and filter to defences that are safe to compare
-        df = pd.read_csv(full_path)
-        valid_defences = ['none', 'feature_smoothing']
-        df_filtered = df[df['defence'].isin(valid_defences)]
+        # Move image to static folder for access
+        src = os.path.join(BASE_DIR, 'defence_prototype', 'results', 'defence_results.png')
+        dst = os.path.join(STATIC_DIR, 'final_defence_summary.png')
+        if not os.path.exists(src):
+            return jsonify({'error': 'Defence results image was not generated'}), 500
 
-        # Step 2: Save filtered CSV temporarily
-        temp_filtered_path = os.path.join(BASE_DIR, 'defence_prototype', 'results', 'defence_results_filtered.csv')
-        df_filtered.to_csv(temp_filtered_path, index=False)
-
-        # Step 3: Monkey patch load_csv_data to return filtered data
-        import prototype.results_presentation.defence_results_presentation as drp
-        original_loader = drp.load_csv_data
-
-        def filtered_loader():
-            return pd.read_csv(temp_filtered_path)
-
-        drp.load_csv_data = filtered_loader
-
-        try:
-            # Step 4: Run visualisation
-            fig = drp.create_advanced_performance_comparison()
-
-            # Step 5: Copy image output to static folder
-            src = os.path.join(BASE_DIR, 'defence_prototype', 'results', 'defence_results.png')
-            dst = os.path.join(STATIC_DIR, 'final_defence_summary.png')
-            if not os.path.exists(src):
-                return jsonify({'error': 'Defence results image was not generated'}), 500
-
-            import shutil
-            shutil.copyfile(src, dst)
-
-        finally:
-            # Step 6: Restore original loader
-            drp.load_csv_data = original_loader
+        import shutil
+        shutil.copyfile(src, dst)
 
         return jsonify({'image_path': '/static/final_defence_summary.png'})
 
