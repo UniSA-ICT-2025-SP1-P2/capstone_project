@@ -401,6 +401,31 @@ def apply_defences():
 
         responses = []
 
+        # === Auto-train baseline models if not already saved ===
+        model_paths = [
+            os.path.join(MODEL_DIR, 'randomForest_model.pkl'),
+            os.path.join(MODEL_DIR, 'label_encoder.pkl'),
+            os.path.join(MODEL_DIR, 'neural_net.pt'),
+        ]
+
+        if not all(os.path.exists(p) for p in model_paths):
+            try:
+                dataset_path = os.path.join(DATA_DIR, 'uploaded_dataset_label.csv')
+                print("⚠️ Baseline models not found. Automatically training using:", dataset_path)
+
+                # Import Adam’s train_models function (for visibility)
+                from prototype.defence_prototype.src.train_models import train_models
+                _ = train_models  # This keeps the linter quiet if unused
+
+                # Use the actual training function you rely on
+                from prototype.baseline_models.baseline_models_webUI import run_all_models
+                run_all_models(dataset_path, MODEL_DIR)
+
+                responses.append("✅ Models were missing and have been trained automatically.")
+            except Exception as e:
+                responses.append(f"❌ Failed to auto-train baseline models: {str(e)}")
+                return jsonify({'message': responses}), 500
+
         # === Step 1: Apply Selected Defences ===
         if 'feature_smoothing' in selected:
             try:
