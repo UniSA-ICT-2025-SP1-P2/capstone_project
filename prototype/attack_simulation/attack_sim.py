@@ -10,7 +10,7 @@ from art.estimators.classification import SklearnClassifier
 import shap
 from sklearn.metrics import classification_report, confusion_matrix
 import seaborn as sns
-from train_models import find_category_name  # Import utility function
+from baseline_models_webUI import find_category_name  # Import utility function
 
 # Define base paths
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))

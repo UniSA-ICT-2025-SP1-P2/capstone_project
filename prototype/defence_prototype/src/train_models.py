@@ -41,7 +41,7 @@ def train_models(data_path, model_dir, test_size=0.2, lr=0.001, epochs=20):
     # === Train Random Forest ===
     rf = RandomForestClassifier(n_estimators=100, random_state=42)
     rf.fit(X_train, y_train)
-    joblib.dump(rf, os.path.join(model_dir, 'random_forest.pkl'))
+    joblib.dump(rf, os.path.join(model_dir, 'RandomForest_model.pkl'))
 
     # === Train Neural Network ===
     input_dim = X.shape[1]
