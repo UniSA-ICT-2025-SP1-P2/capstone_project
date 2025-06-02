@@ -12,12 +12,29 @@ import art
 import importlib.util
 
 # Add the current directory and parent directories to Python path
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-if current_dir not in sys.path:
-    sys.path.insert(0, current_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+def setup_test_path():
+    """Setup Python path for testing to import from parent and sibling directories."""
+    test_file = os.path.abspath(__file__)
+    test_dir = os.path.dirname(test_file)
+    project_root = os.path.dirname(test_dir)
+    
+    # Add common paths
+    paths = [project_root, test_dir]
+    
+    # Add all subdirectories of project root (for sibling imports)
+    if os.path.exists(project_root):
+        for item in os.listdir(project_root):
+            item_path = os.path.join(project_root, item)
+            if os.path.isdir(item_path) and not item.startswith('.'):
+                paths.append(item_path)
+    
+    # Add unique paths to sys.path
+    for path in paths:
+        if path not in sys.path:
+            sys.path.insert(0, path)
+
+# Call the setup function
+setup_test_path()
 
 # Try multiple import strategies for the app
 app = None
