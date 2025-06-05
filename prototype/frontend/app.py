@@ -15,6 +15,7 @@ from prototype.results_presentation.concept_drift_presentation import visualize_
 from prototype.defence_prototype.src.defences import adversarial_training, feature_smoothing, ensemble_learning, \
     concept_drift
 from prototype.defence_prototype.src.evaluate_defences import run_evaluation
+from prototype.results_presentation.defence_results_presentation import create_advanced_performance_comparison
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -52,6 +53,7 @@ def load_models():
                 print(f"❌ Failed to load model {name}: {str(e)}")
 
     return models
+
 
 def load_test_data():
     """Load test dataset and related encoders"""
@@ -114,13 +116,13 @@ def upload_file():
 
     selected_models = request.form.getlist("models")
     if not selected_models:
-        selected_models = ["RandomForest", "KNN", "LogisticRegression", "DecisionTree", "SVM"]
+        selected_models = ["RandomForest", "KNN", "LogisticRegression", "DecisionTree", "SVM"]  # Default to all
 
     try:
         df = pd.read_csv(filepath)
 
         # Save the original uploaded dataset, but drop 'Class' only in the saved file
-        saved_df = df.drop(columns=['Class'], errors='ignore')
+        saved_df = df.drop(columns=['Class'], errors='ignore')  # Keep 'df' in memory untouched
 
         # Path 1: Save in baseline_data
         baseline_path = os.path.join(BASE_DIR, "baseline_models", "baseline_data", "uploaded_dataset.csv")
@@ -135,25 +137,9 @@ def upload_file():
         adversarial_training_path = os.path.join(BASE_DIR, "data", "uploaded_dataset.csv")
         saved_df.to_csv(adversarial_training_path, index=False)
 
-        # Path 4: Save uploaded_dataset_label.csv with correct 'label' values
-        df_labelled = df.copy()
-        if "Category" in df_labelled.columns:
-            df_labelled["label"] = df_labelled["Category"].apply(find_category_name)
-        elif "category_name" in df_labelled.columns:
-            df_labelled["label"] = df_labelled["category_name"].apply(find_category_name)
-        elif "Class" in df_labelled.columns:
-            df_labelled["label"] = df_labelled["Class"].apply(find_category_name)
-        else:
-            df_labelled["label"] = "Unknown"
-
-        label_path = os.path.join(BASE_DIR, "baseline_models", "baseline_data", "uploaded_dataset_label.csv")
-        df_labelled.to_csv(label_path, index=False)
-
-        print(f"✅ Saved labeled dataset to: {label_path}")
-
         results = run_all_models(df, selected_models=selected_models)
 
-        # SHAP values setup
+        # Get SHAP values if available
         shap_path = os.path.join(DATA_DIR, "Classifier_Results.xlsx")
         shap_df = pd.DataFrame()
         if os.path.exists(shap_path):
@@ -169,11 +155,13 @@ def upload_file():
             "results": {}
         }
 
+        # Process results for each model
         for model_name, data in results.get("results", {}).items():
             report = data.get("report", {})
             model_path = data.get("model_path")
             shap_image = data.get("shap_image")
 
+            # Get feature count
             feature_count = 0
             try:
                 model = joblib.load(model_path)
@@ -187,6 +175,7 @@ def upload_file():
                 print(f"Warning: Could not get feature count for {model_name}: {str(e)}")
                 feature_count = len(results.get('adversarial_features', []))
 
+            # Extract SHAP values
             shap_values = {}
             if not shap_df.empty:
                 model_shap = shap_df[shap_df["Classifier"] == model_name]
@@ -212,6 +201,7 @@ def upload_file():
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/generate_adversarial', methods=['POST'])
 def generate_adversarial():
@@ -259,12 +249,14 @@ def generate_adversarial():
             print("Warning: 'Class' column not found in adversarial samples. Adding default class 'Conti'.")
             adv_df['Class'] = 'Conti'
 
-        adv_df = adv_df.drop(columns=[col for col in adv_df.columns if col not in feature_names + ['Class', 'Category', 'source']], errors='ignore')
+        adv_df = adv_df.drop(
+            columns=[col for col in adv_df.columns if col not in feature_names + ['Class', 'Category', 'source']],
+            errors='ignore')
         for f in feature_names:
             if f not in adv_df.columns:
                 adv_df[f] = 0
 
-        # === Load test dataset instead of uploaded ===
+        # === Load test dataset ===
         test_df_path = os.path.join(DATA_DIR, "Test_Dataset.csv")
         if not os.path.exists(test_df_path):
             return jsonify({'error': f'Test dataset not found at {test_df_path}'}), 500
@@ -315,8 +307,23 @@ def generate_adversarial():
         combined_df.to_csv(latest_merged_path, index=False)
         print(f"🗑️ Saved merged dataset as: {latest_merged_path}")
 
-        # Fix categories in retrain set
+        # === Generate retraining samples and fix categories ===
         try:
+            # Replicate the exact same sample selection as generation functions
+            import numpy as np
+            np.random.seed(42)  # Same seed as generation functions
+            benign_encoded = label_encoder.transform(["Benign"])[0]
+            malware_mask = y_test_encoded != benign_encoded
+            X_malware = X_test[malware_mask]
+            y_malware_original = y_test_original[malware_mask]
+
+            if len(X_malware) < 100:
+                selected_indices = list(range(len(X_malware)))
+            else:
+                selected_indices = np.random.choice(len(X_malware), 100, replace=False)
+
+            correct_categories = y_malware_original.iloc[selected_indices].tolist()
+
             if attack_type == 'fgsm':
                 retrain_df = generate_adversarial_samples_for_retraining(
                     model=models[source_model],
@@ -326,10 +333,10 @@ def generate_adversarial():
                     n_samples=100,
                     target_class="Benign"
                 )
-                malware_mask = y_test_encoded != 2
-                correct_categories = y_test_original[malware_mask].iloc[:100].tolist()
                 retrain_df['Category'] = correct_categories
-                retrain_df.to_csv(os.path.join(DATA_DIR, 'adversarial_fgsm.csv'), index=False)
+                retrain_df.to_csv(os.path.join(ADVERSARIAL_DATA_DIR, 'adversarial_fgsm.csv'), index=False)
+                print(f"✅ FGSM samples saved with correct categories: {pd.Series(correct_categories).value_counts()}")
+
             elif attack_type == 'pgd':
                 retrain_df = generate_pgd_samples_for_retraining(
                     model=models[source_model],
@@ -339,10 +346,10 @@ def generate_adversarial():
                     n_samples=100,
                     target_class='Benign'
                 )
-                malware_mask = y_test_encoded != 2
-                correct_categories = y_test_original[malware_mask].iloc[:100].tolist()
                 retrain_df['Category'] = correct_categories
-                retrain_df.to_csv(os.path.join(DATA_DIR, 'adversarial_pgd.csv'), index=False)
+                retrain_df.to_csv(os.path.join(ADVERSARIAL_DATA_DIR, 'adversarial_pgd.csv'), index=False)
+                print(f"✅ PGD samples saved with correct categories: {pd.Series(correct_categories).value_counts()}")
+
         except Exception as e:
             print(f"⚠️ Failed to save adversarial training file: {str(e)}")
 
@@ -413,8 +420,9 @@ def apply_defences():
         if 'feature_smoothing' in selected:
             try:
                 noise_std = float(request.form.get('noise_std', 0.02))
-                input_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset.csv')
-                output_path = os.path.join(OUTPUT_DIR, 'latest_combined_dataset_smoothed.csv')
+
+                input_path = os.path.join(BASE_DIR, 'data', 'uploaded_dataset_label.csv')
+                output_path = os.path.join(OUTPUT_DIR, 'uploaded_dataset_label_smoothed.csv')
 
                 feature_smoothing.apply_feature_smoothing_path(
                     input_path=input_path,
@@ -429,6 +437,7 @@ def apply_defences():
             try:
                 epochs = int(request.form.get('epochs', 10))
                 lr = float(request.form.get('lr', 0.001))
+
                 adversarial_training.run_adversarial_training(
                     data_dir=ADVERSARIAL_DATA_DIR,
                     model_dir=MODEL_DIR,
@@ -459,8 +468,15 @@ def apply_defences():
                     model_type='ensemble',
                     chunk_size=chunk_size,
                     threshold=threshold,
-                    results_dir=RESULTS_DIR
+                    results_dir=OUTPUT_DIR
                 )
+
+                # ✅ Ensure concept_drift_results.csv is available for visualisation
+                import shutil
+                src = os.path.join(OUTPUT_DIR, 'concept_drift_results.csv')
+                dst = os.path.join(BASE_DIR, 'defence_prototype', 'results', 'concept_drift_results.csv')
+                shutil.copyfile(src, dst)
+                print(f"✅ Copied concept drift results to: {dst}")
 
                 responses.append(f'🧠 Concept Drift applied with chunk size {chunk_size} and threshold {threshold}.')
             except Exception as e:
@@ -471,22 +487,21 @@ def apply_defences():
                 input_path = os.path.join(BASE_DIR, 'baseline_models', 'baseline_data', 'uploaded_dataset_label.csv')
                 df = pd.read_csv(input_path)
 
-                # Ensure 'label' exists and is simplified
-                if 'label' in df.columns:
-                    df['label'] = df['label'].apply(find_category_name)
-                else:
-                    responses.append("❌ 'label' column not found in uploaded_dataset_label.csv")
-                    return jsonify({'message': responses}), 500
+                # Load the trained feature names
+                feature_names = joblib.load(os.path.join(MODEL_DIR, 'feature_names.pkl'))
 
-                # Drop all non-numeric columns except 'label'
-                numeric_df = df.select_dtypes(include=[np.number])
-                numeric_df['label'] = df['label']
+                # Make sure 'label' column exists and include it
+                if 'label' not in df.columns:
+                    raise ValueError("Expected 'label' column not found in uploaded_dataset_label.csv")
 
-                # Save cleaned temp file
+                # Keep only features used during training + the label column
+                df_filtered = df[feature_names + ['label']]
+
+                # Save temporary file for evaluation
                 temp_path = os.path.join(OUTPUT_DIR, 'uploaded_dataset_temp.csv')
-                numeric_df.to_csv(temp_path, index=False)
+                df_filtered.to_csv(temp_path, index=False)
 
-                # Run ensemble learning
+                # Run ensemble evaluation
                 result = ensemble_learning.run_ensemble_evaluation(data_path=temp_path, model_dir=MODEL_DIR)
                 acc = result.get("accuracy", 0)
                 responses.append(f'🧩 Ensemble Learning applied (Accuracy: {acc:.2f}).')
